@@ -151,7 +151,7 @@ SELECT
     ER.status                                               AS report_status,
     ER.description,
     C.full_name                                             AS reported_by,
-    C.phone                                                 AS citizen_phone,   -- contact for field team
+    U.phone                                                 AS citizen_phone,
     DE.event_name,
     DE.disaster_type                                        AS event_type,
     ISNULL(TA.assignment_count, 0)                          AS teams_assigned,
@@ -162,6 +162,7 @@ SELECT
     DATEDIFF(MINUTE, ER.report_time, GETDATE())             AS minutes_since_report
 FROM       Emergency_Report ER
 INNER JOIN Citizen          C  ON C.citizen_id = ER.citizen_id
+INNER JOIN [User]           U  ON U.user_id    = C.user_id
 INNER JOIN Disaster_Event   DE ON DE.event_id  = ER.disaster_event_id
 LEFT JOIN (
     SELECT report_id, COUNT(*) AS assignment_count

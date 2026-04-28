@@ -7,11 +7,13 @@ const { authenticate, authorize } = require('../middleware/auth');
 const financeRouter = express.Router();
 financeRouter.use(authenticate);
 
-// GET /api/finance/summary — finance officer view
-financeRouter.get('/summary', authorize('System_Admin', 'Finance_Officer'), async (req, res) => {
+// GET /api/finance/summary — via vw_FinanceOfficer_Summary
+financeRouter.get('/summary', authorize('System_Admin', 'Finance_Officer', 'Disaster_Coordinator'), async (req, res) => {
     try {
         const pool = await getPool();
-        const result = await pool.request().query(`SELECT * FROM vw_FinanceOfficer_Summary ORDER BY net_balance DESC`);
+        const result = await pool.request().query(`
+      SELECT * FROM vw_FinanceOfficer_Summary ORDER BY net_balance DESC
+    `);
         res.json(result.recordset);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -89,25 +91,56 @@ financeRouter.post('/donations', authorize('System_Admin', 'Finance_Officer'), a
     }
 });
 
-// POST /api/finance/expenses
+// POST /api/finance/expenses — record expense + financial transaction (Transaction 3)
 financeRouter.post('/expenses', authorize('System_Admin', 'Finance_Officer'), async (req, res) => {
     const { disaster_event_id, category, amount, description } = req.body;
+    if (!disaster_event_id || !category || !amount || !description) {
+        return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    const pool = await getPool();
+    const tx = new (require('mssql').Transaction)(await pool);
+
     try {
-        const pool = await getPool();
-        const result = await pool.request()
+        await tx.begin();
+
+        // 1) Insert into Expense table
+        const r1 = new (require('mssql').Request)(tx);
+        const expResult = await r1
             .input('event_id', sql.Int, disaster_event_id)
             .input('category', sql.VarChar, category)
             .input('amount', sql.Decimal(15, 2), amount)
             .input('description', sql.Text, description)
             .input('recorded_by', sql.Int, req.user.user_id)
             .query(`
-        INSERT INTO Expense
-          (disaster_event_id, category, amount, description, expense_date, recorded_by, approval_status)
-        OUTPUT INSERTED.expense_id
-        VALUES (@event_id, @category, @amount, @description, GETDATE(), @recorded_by, 'Pending')
-      `);
-        res.status(201).json({ expense_id: result.recordset[0].expense_id, message: 'Expense submitted for approval' });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+                INSERT INTO Expense
+                  (disaster_event_id, category, amount, description, expense_date, recorded_by, approval_status)
+                OUTPUT INSERTED.expense_id
+                VALUES (@event_id, @category, @amount, @description, GETDATE(), @recorded_by, 'Pending')
+            `);
+
+        const expense_id = expResult.recordset[0].expense_id;
+
+        // 2) Also insert into Financial_Transaction so it shows in the ledger
+        const r2 = new (require('mssql').Request)(tx);
+        await r2
+            .input('ref_id', sql.Int, expense_id)
+            .input('event_id2', sql.Int, disaster_event_id)
+            .input('amount2', sql.Decimal(15, 2), amount)
+            .input('rec_by', sql.Int, req.user.user_id)
+            .input('note', sql.VarChar, `Expense: ${category} — ${description.substring(0, 200)}`)
+            .query(`
+                INSERT INTO Financial_Transaction
+                  (transaction_type, reference_id, disaster_event_id, amount, transaction_date, recorded_by, notes)
+                VALUES ('Expense', @ref_id, @event_id2, @amount2, GETDATE(), @rec_by, @note)
+            `);
+
+        await tx.commit();
+        res.status(201).json({ expense_id, message: 'Expense recorded successfully' });
+    } catch (err) {
+        await tx.rollback();
+        res.status(400).json({ error: err.message });
+    }
 });
 
 module.exports.financeRouter = financeRouter;

@@ -7,13 +7,27 @@ const { authenticate, authorize } = require('../middleware/auth');
 const hospitalsRouter = express.Router();
 hospitalsRouter.use(authenticate);
 
-// GET /api/hospitals — capacity view
+// GET /api/hospitals — via vw_Hospital_Capacity
 hospitalsRouter.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request().query(`
-      SELECT * FROM vw_Hospital_Capacity
-      ORDER BY occupancy_pct DESC
+      SELECT
+        H.hospital_id,
+        V.hospital_name,
+        V.location,
+        V.contact_number,
+        V.specialization,
+        V.total_beds,
+        V.available_beds,
+        V.occupied_beds,
+        V.occupancy_pct,
+        V.critical_patients,
+        V.admitted_patients,
+        V.capacity_status
+      FROM vw_Hospital_Capacity V
+      INNER JOIN Hospital H ON H.hospital_name = V.hospital_name
+      ORDER BY V.occupancy_pct DESC
     `);
         res.json(result.recordset);
     } catch (err) { res.status(500).json({ error: err.message }); }

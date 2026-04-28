@@ -23,11 +23,12 @@ router.get('/', async (req, res) => {
              ER.disaster_type, ER.severity_level, ER.report_time,
              ER.status, ER.description,
              C.full_name   AS citizen_name,
-             C.phone       AS citizen_phone,
+             U.phone       AS citizen_phone,
              DE.event_name,
              ISNULL(TA.teams_assigned, 0) AS teams_assigned
       FROM   Emergency_Report ER
       INNER JOIN Citizen        C  ON C.citizen_id  = ER.citizen_id
+      INNER JOIN [User]         U  ON U.user_id     = C.user_id
       INNER JOIN Disaster_Event DE ON DE.event_id   = ER.disaster_event_id
       LEFT JOIN (
         SELECT report_id, COUNT(*) AS teams_assigned
@@ -74,10 +75,11 @@ router.get('/:id', async (req, res) => {
     const result = await pool.request()
       .input('id', sql.Int, req.params.id)
       .query(`
-        SELECT ER.*, C.full_name AS citizen_name, C.phone AS citizen_phone,
+        SELECT ER.*, C.full_name AS citizen_name, U.phone AS citizen_phone,
                DE.event_name, DE.disaster_type AS event_type
         FROM   Emergency_Report ER
         INNER JOIN Citizen        C  ON C.citizen_id = ER.citizen_id
+        INNER JOIN [User]         U  ON U.user_id    = C.user_id
         INNER JOIN Disaster_Event DE ON DE.event_id  = ER.disaster_event_id
         WHERE  ER.report_id = @id
       `);

@@ -57,6 +57,75 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// ── POST /api/auth/signup ────────────────────────────────────
+router.post('/signup', async (req, res) => {
+  const { username, password, email, phone, full_name, cnic, address, date_of_birth, gender } = req.body;
+
+  if (!username || !password || !email || !full_name || !cnic || !phone || !address || !date_of_birth) {
+    return res.status(400).json({ error: 'All fields (including address and date of birth) are required' });
+  }
+
+  try {
+    const pool = await getPool();
+    
+    // Check if user already exists
+    const existing = await pool.request()
+      .input('username', sql.VarChar, username)
+      .input('email', sql.VarChar, email)
+      .query('SELECT 1 FROM [User] WHERE username = @username OR email = @email');
+
+    if (existing.recordset.length > 0) {
+      return res.status(409).json({ error: 'Username or Email already exists' });
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    
+    // Begin transaction since we are inserting into 2 tables
+    const tx = new sql.Transaction(pool);
+    await tx.begin();
+
+    try {
+      // Citizen Role is role_id 6
+      const userReq = new sql.Request(tx);
+      const userResult = await userReq
+        .input('username', sql.VarChar, username)
+        .input('hash', sql.Text, hash)
+        .input('email', sql.VarChar, email)
+        .input('phone', sql.VarChar, phone || null)
+        .query(`
+          INSERT INTO [User] (username, password_hash, email, phone, is_active, role_id)
+          OUTPUT INSERTED.user_id
+          VALUES (@username, @hash, @email, @phone, 1, 6)
+        `);
+
+      const userId = userResult.recordset[0].user_id;
+
+      const citizenReq = new sql.Request(tx);
+      await citizenReq
+        .input('user_id', sql.Int, userId)
+        .input('full_name', sql.VarChar, full_name)
+        .input('cnic', sql.VarChar, cnic)
+        .input('address', sql.VarChar, address || null)
+        .input('dob', sql.Date, date_of_birth || null)
+        .input('gender', sql.VarChar, gender || null)
+        .query(`
+          INSERT INTO Citizen (user_id, full_name, cnic, address, date_of_birth, gender)
+          VALUES (@user_id, @full_name, @cnic, @address, @dob, @gender)
+        `);
+
+      await tx.commit();
+      
+      res.status(201).json({ message: 'Signup successful, you can now log in' });
+    } catch (txErr) {
+      await tx.rollback();
+      throw txErr;
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Server error during signup' });
+  }
+});
+
 // ── GET /api/auth/me ─────────────────────────────────────────
 router.get('/me', authenticate, async (req, res) => {
   try {

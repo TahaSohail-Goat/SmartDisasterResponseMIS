@@ -258,13 +258,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
-const authRouter = require('./routes/auth');
-const eventsRouter = require('./routes/events');
-const reportsRouter = require('./routes/reports');
-const teamsRouter = require('./routes/teams');
+const authRouter      = require('./routes/auth');
+const eventsRouter    = require('./routes/events');
+const reportsRouter   = require('./routes/reports');
+const teamsRouter     = require('./routes/teams');
 const { inventoryRouter } = require('./routes/inventory');
-const { financeRouter } = require('./routes/finance');
+const { financeRouter }   = require('./routes/finance');
 const { hospitalsRouter } = require('./routes/hospitals');
+const { adminRouter }     = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -280,13 +281,14 @@ app.use((req, _res, next) => {
 });
 
 // ── Routes ───────────────────────────────────────────────────
-app.use('/api/auth', authRouter);
-app.use('/api/events', eventsRouter);
-app.use('/api/reports', reportsRouter);
-app.use('/api/teams', teamsRouter);
+app.use('/api/auth',      authRouter);
+app.use('/api/events',    eventsRouter);
+app.use('/api/reports',   reportsRouter);
+app.use('/api/teams',     teamsRouter);
 app.use('/api/inventory', inventoryRouter);
-app.use('/api/finance', financeRouter);
+app.use('/api/finance',   financeRouter);
 app.use('/api/hospitals', hospitalsRouter);
+app.use('/api/admin',     adminRouter);
 
 // ── Health check ─────────────────────────────────────────────
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));

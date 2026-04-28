@@ -8,13 +8,31 @@ const { authenticate, authorize } = require('../middleware/auth');
 const inventoryRouter = express.Router();
 inventoryRouter.use(authenticate);
 
-// GET /api/inventory — warehouse manager view
+// GET /api/inventory — via vw_WarehouseManager_Inventory
 inventoryRouter.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request().query(`
-      SELECT * FROM vw_WarehouseManager_Inventory
-      ORDER BY stock_alert DESC, current_stock ASC
+      SELECT
+        WI.inventory_id,
+        V.resource_name,
+        V.resource_type,
+        V.unit_of_measure,
+        V.warehouse_name,
+        V.warehouse_location,
+        V.current_stock,
+        V.threshold_level,
+        V.last_updated,
+        V.buffer_above_threshold,
+        V.pending_procurement_qty,
+        V.projected_stock,
+        V.stock_alert,
+        CASE WHEN V.stock_alert IN ('LOW STOCK','OUT OF STOCK') THEN 1 ELSE 0 END AS stock_alert_flag
+      FROM vw_WarehouseManager_Inventory V
+      INNER JOIN Warehouse W ON W.warehouse_name = V.warehouse_name
+      INNER JOIN Resource  R ON R.resource_name  = V.resource_name
+      INNER JOIN Warehouse_Inventory WI ON WI.warehouse_id = W.warehouse_id AND WI.resource_id = R.resource_id
+      ORDER BY CASE WHEN V.stock_alert IN ('LOW STOCK','OUT OF STOCK') THEN 0 ELSE 1 END, V.current_stock ASC
     `);
         res.json(result.recordset);
     } catch (err) { res.status(500).json({ error: err.message }); }
