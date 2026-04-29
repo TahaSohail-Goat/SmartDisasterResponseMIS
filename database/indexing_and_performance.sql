@@ -407,8 +407,14 @@ SELECT
     OBJECT_NAME(I.object_id)            AS table_name,
     I.type_desc,
     I.is_unique,
-    STRING_AGG(C.name, ', ')
-        WITHIN GROUP (ORDER BY IC.key_ordinal) AS key_columns
+    STUFF((
+        SELECT ', ' + C2.name
+        FROM   sys.index_columns IC2
+        INNER JOIN sys.columns C2 ON C2.object_id = IC2.object_id AND C2.column_id = IC2.column_id
+        WHERE  IC2.object_id = I.object_id AND IC2.index_id = I.index_id AND IC2.is_included_column = 0
+        ORDER BY IC2.key_ordinal
+        FOR XML PATH(''), TYPE
+    ).value('.','NVARCHAR(MAX)'), 1, 2, '') AS key_columns
 FROM       sys.indexes        I
 INNER JOIN sys.index_columns  IC ON IC.object_id  = I.object_id
                                  AND IC.index_id   = I.index_id

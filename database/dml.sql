@@ -22,16 +22,16 @@ INSERT INTO Role (role_name, description) VALUES
 -- ============================================================
 -- Passwords are bcrypt hashes of 'Pass@1234' (placeholder)
 INSERT INTO [User] (username, password_hash, email, phone, is_active, role_id) VALUES
-('admin_ali',      '$2b$12$AAAAAAAAAAAAAAAAAAAAAA', 'ali@sdrmis.gov.pk',      '0300-1111111', 1, 1),
-('coord_sara',     '$2b$12$BBBBBBBBBBBBBBBBBBBBBB', 'sara@sdrmis.gov.pk',     '0300-2222222', 1, 2),
-('rescue_omar',    '$2b$12$CCCCCCCCCCCCCCCCCCCCCC', 'omar@sdrmis.gov.pk',     '0300-3333333', 1, 3),
-('wh_fatima',      '$2b$12$DDDDDDDDDDDDDDDDDDDDDD', 'fatima@sdrmis.gov.pk',   '0300-4444444', 1, 4),
-('fin_ahmed',      '$2b$12$EEEEEEEEEEEEEEEEEEEEEE', 'ahmed@sdrmis.gov.pk',    '0300-5555555', 1, 5),
-('citizen_hamza',  '$2b$12$FFFFFFFFFFFFFFFFFFFFFF', 'hamza@gmail.com',         '0311-1234567', 1, 6),
-('citizen_aisha',  '$2b$12$GGGGGGGGGGGGGGGGGGGGGG', 'aisha@gmail.com',         '0311-2345678', 1, 6),
-('citizen_bilal',  '$2b$12$HHHHHHHHHHHHHHHHHHHHHH', 'bilal@yahoo.com',         '0311-3456789', 1, 6),
-('citizen_zara',   '$2b$12$IIIIIIIIIIIIIIIIIIIIII', 'zara@hotmail.com',         '0311-4567890', 1, 6),
-('wh_manager2',    '$2b$12$JJJJJJJJJJJJJJJJJJJJJJ', 'manager2@sdrmis.gov.pk', '0300-6666666', 1, 4);
+('admin_ali',      '$2b$12$eW5bB3rOXJkT5mKZmMzQGOqPwVtNfkL4cRAkxhMdMOWJB5k8dH6Ky', 'ali@sdrmis.gov.pk',      '0300-1111111', 1, 1),
+('coord_sara',     '$2b$12$eW5bB3rOXJkT5mKZmMzQGOqPwVtNfkL4cRAkxhMdMOWJB5k8dH6Ky', 'sara@sdrmis.gov.pk',     '0300-2222222', 1, 2),
+('rescue_omar',    '$2b$12$eW5bB3rOXJkT5mKZmMzQGOqPwVtNfkL4cRAkxhMdMOWJB5k8dH6Ky', 'omar@sdrmis.gov.pk',     '0300-3333333', 1, 3),
+('wh_fatima',      '$2b$12$eW5bB3rOXJkT5mKZmMzQGOqPwVtNfkL4cRAkxhMdMOWJB5k8dH6Ky', 'fatima@sdrmis.gov.pk',   '0300-4444444', 1, 4),
+('fin_ahmed',      '$2b$12$eW5bB3rOXJkT5mKZmMzQGOqPwVtNfkL4cRAkxhMdMOWJB5k8dH6Ky', 'ahmed@sdrmis.gov.pk',    '0300-5555555', 1, 5),
+('citizen_hamza',  '$2b$12$eW5bB3rOXJkT5mKZmMzQGOqPwVtNfkL4cRAkxhMdMOWJB5k8dH6Ky', 'hamza@gmail.com',         '0311-1234567', 1, 6),
+('citizen_aisha',  '$2b$12$eW5bB3rOXJkT5mKZmMzQGOqPwVtNfkL4cRAkxhMdMOWJB5k8dH6Ky', 'aisha@gmail.com',         '0311-2345678', 1, 6),
+('citizen_bilal',  '$2b$12$eW5bB3rOXJkT5mKZmMzQGOqPwVtNfkL4cRAkxhMdMOWJB5k8dH6Ky', 'bilal@yahoo.com',         '0311-3456789', 1, 6),
+('citizen_zara',   '$2b$12$eW5bB3rOXJkT5mKZmMzQGOqPwVtNfkL4cRAkxhMdMOWJB5k8dH6Ky', 'zara@hotmail.com',         '0311-4567890', 1, 6),
+('wh_manager2',    '$2b$12$eW5bB3rOXJkT5mKZmMzQGOqPwVtNfkL4cRAkxhMdMOWJB5k8dH6Ky', 'manager2@sdrmis.gov.pk', '0300-6666666', 1, 4);
 
 -- ============================================================
 --  USER_ROLE  (junction — some users hold multiple roles)
@@ -221,7 +221,7 @@ INSERT INTO Procurement (resource_id, warehouse_id, quantity, unit_cost, procure
 (4, 5, 200,  18000.00,'2025-07-25 11:00:00', 'Relief Shelter Company',    1, 'Completed'),
 (5, 4, 10000,   15.00,'2025-09-10 09:00:00', 'PharmaPak Ltd',             1, 'Completed'),
 (7, 3, 300,   2500.00,'2025-09-12 10:00:00', 'MediKit Solutions',         1, 'Completed'),
-(8, 5, 2000,   650.00,'2025-08-01 08:00:00', 'Ready Meals Pakistan',      1, 'Completed');
+(8, 5, 2000,   650.00,'2025-08-01 08:00:00', 'Ready Meals Pakistan',      1, 'Pending');
 
 -- ============================================================
 --  FINANCIAL TRANSACTIONS  (10 rows)
