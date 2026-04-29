@@ -18,7 +18,7 @@ router.post('/login', async (req, res) => {
     const result = await pool.request()
       .input('username', sql.VarChar, username)
       .query(`
-        SELECT u.user_id, u.username, u.password_hash,
+        SELECT u.user_id, u.username, CAST(u.password_hash AS VARCHAR(MAX)) AS password_hash,
                u.email, u.is_active, r.role_name
         FROM   [User] u
         INNER JOIN Role r ON r.role_id = u.role_id
@@ -36,10 +36,13 @@ router.post('/login', async (req, res) => {
     if (!valid)
       return res.status(401).json({ error: 'Invalid credentials' });
 
+    const secret = process.env.JWT_SECRET;
+    if (!secret) return res.status(500).json({ error: 'JWT_SECRET is not configured' });
+
     const token = jwt.sign(
       { user_id: user.user_id, username: user.username, role: user.role_name },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      secret,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
     );
 
     res.json({
@@ -72,12 +75,26 @@ router.post('/signup', async (req, res) => {
     const existing = await pool.request()
       .input('username', sql.VarChar, username)
       .input('email', sql.VarChar, email)
-      .query('SELECT 1 FROM [User] WHERE username = @username OR email = @email');
+      .input('cnic', sql.VarChar, cnic)
+      .query(`
+        SELECT 1 FROM [User] WHERE username = @username OR email = @email
+        UNION ALL
+        SELECT 1 FROM Citizen WHERE cnic = @cnic
+      `);
 
     if (existing.recordset.length > 0) {
-      return res.status(409).json({ error: 'Username or Email already exists' });
+      return res.status(409).json({ error: 'Username, email, or CNIC already exists' });
     }
 
+    const roleRes = await pool.request()
+      .input('role', sql.VarChar, 'Citizen')
+      .query('SELECT role_id FROM Role WHERE role_name = @role');
+
+    if (!roleRes.recordset.length) {
+      return res.status(500).json({ error: 'Citizen role is missing from the database' });
+    }
+
+    const citizenRoleId = roleRes.recordset[0].role_id;
     const hash = await bcrypt.hash(password, 12);
     
     // Begin transaction since we are inserting into 2 tables
@@ -91,11 +108,12 @@ router.post('/signup', async (req, res) => {
         .input('username', sql.VarChar, username)
         .input('hash', sql.Text, hash)
         .input('email', sql.VarChar, email)
-        .input('phone', sql.VarChar, phone || null)
+        .input('phone', sql.VarChar, phone)
+        .input('role_id', sql.Int, citizenRoleId)
         .query(`
           INSERT INTO [User] (username, password_hash, email, phone, is_active, role_id)
           OUTPUT INSERTED.user_id
-          VALUES (@username, @hash, @email, @phone, 1, 6)
+          VALUES (@username, @hash, @email, @phone, 1, @role_id)
         `);
 
       const userId = userResult.recordset[0].user_id;
@@ -105,13 +123,19 @@ router.post('/signup', async (req, res) => {
         .input('user_id', sql.Int, userId)
         .input('full_name', sql.VarChar, full_name)
         .input('cnic', sql.VarChar, cnic)
-        .input('address', sql.VarChar, address || null)
-        .input('dob', sql.Date, date_of_birth || null)
-        .input('gender', sql.VarChar, gender || null)
+        .input('address', sql.VarChar, address)
+        .input('dob', sql.Date, date_of_birth)
+        .input('gender', sql.VarChar, gender || 'Other')
         .query(`
           INSERT INTO Citizen (user_id, full_name, cnic, address, date_of_birth, gender)
           VALUES (@user_id, @full_name, @cnic, @address, @dob, @gender)
         `);
+
+      const roleReq = new sql.Request(tx);
+      await roleReq
+        .input('user_id', sql.Int, userId)
+        .input('role_id', sql.Int, citizenRoleId)
+        .query('INSERT INTO User_Role (user_id, role_id) VALUES (@user_id, @role_id)');
 
       await tx.commit();
       

@@ -426,7 +426,7 @@ WHERE  OBJECT_NAME(I.object_id) IN (
     'Warehouse_Inventory','Financial_Transaction'
 )
 AND    I.type > 0    -- exclude heaps
-GROUP BY I.name, I.object_id, I.type_desc, I.is_unique
+GROUP BY I.name, I.object_id, I.index_id, I.type_desc, I.is_unique
 ORDER BY OBJECT_NAME(I.object_id), I.name;
 
 GO

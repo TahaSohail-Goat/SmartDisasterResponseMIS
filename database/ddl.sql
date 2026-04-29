@@ -258,6 +258,7 @@ CREATE TABLE Procurement (
     procurement_id   INT            IDENTITY(1,1) PRIMARY KEY,
     resource_id      INT            NOT NULL,
     warehouse_id     INT            NOT NULL,
+    disaster_event_id INT           NULL,
     quantity         INT            NOT NULL CHECK (quantity > 0),
     unit_cost        DECIMAL(15,2)  NOT NULL CHECK (unit_cost > 0),
     procurement_date DATETIME       NOT NULL DEFAULT GETDATE(),
@@ -267,6 +268,7 @@ CREATE TABLE Procurement (
     -- total_cost derived: quantity * unit_cost
     CONSTRAINT FK_Procurement_Resource  FOREIGN KEY (resource_id)  REFERENCES Resource(resource_id),
     CONSTRAINT FK_Procurement_Warehouse FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id),
+    CONSTRAINT FK_Procurement_Event     FOREIGN KEY (disaster_event_id) REFERENCES Disaster_Event(event_id),
     CONSTRAINT FK_Procurement_Approver  FOREIGN KEY (approved_by)  REFERENCES [User](user_id)
 );
 
@@ -293,7 +295,9 @@ CREATE TABLE Approval_Request (
     request_type  VARCHAR(100)  NOT NULL,
     requested_by  INT           NOT NULL,
     approved_by   INT           NULL,              -- NULL until resolved
-    allocation_id INT           NOT NULL,
+    allocation_id INT           NULL,
+    procurement_id INT          NULL,
+    assignment_id INT           NULL,
     status        VARCHAR(20)   NOT NULL CHECK (status IN ('Pending','Approved','Rejected')),
     request_date  DATETIME      NOT NULL DEFAULT GETDATE(),
     resolved_date DATETIME      NULL,
@@ -301,7 +305,14 @@ CREATE TABLE Approval_Request (
     -- processing_time derived: DATEDIFF(hour, request_date, resolved_date)
     CONSTRAINT FK_ApprReq_Requester  FOREIGN KEY (requested_by)  REFERENCES [User](user_id),
     CONSTRAINT FK_ApprReq_Approver   FOREIGN KEY (approved_by)   REFERENCES [User](user_id),
-    CONSTRAINT FK_ApprReq_Allocation FOREIGN KEY (allocation_id) REFERENCES Resource_Allocation(allocation_id)
+    CONSTRAINT FK_ApprReq_Allocation FOREIGN KEY (allocation_id) REFERENCES Resource_Allocation(allocation_id),
+    CONSTRAINT FK_ApprReq_Procurement FOREIGN KEY (procurement_id) REFERENCES Procurement(procurement_id),
+    CONSTRAINT FK_ApprReq_Assignment FOREIGN KEY (assignment_id) REFERENCES Team_Assignment(assignment_id),
+    CONSTRAINT CHK_ApprReq_OneTarget CHECK (
+        (CASE WHEN allocation_id IS NOT NULL THEN 1 ELSE 0 END) +
+        (CASE WHEN procurement_id IS NOT NULL THEN 1 ELSE 0 END) +
+        (CASE WHEN assignment_id IS NOT NULL THEN 1 ELSE 0 END) = 1
+    )
 );
 
 CREATE TABLE Audit_Log (

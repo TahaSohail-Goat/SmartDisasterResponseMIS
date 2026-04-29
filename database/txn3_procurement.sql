@@ -4,10 +4,10 @@
 --
 --  Steps (from Design Rationale §17.3):
 --    1. INSERT Procurement (status='Pending')
---    2. INSERT Approval_Request
+--    2. INSERT Approval_Request linked by procurement_id
 --    On approval signal:
 --    3. UPDATE Procurement.status = 'Completed'
---    4. MERGE Warehouse_Inventory (upsert — handles first-time stocking)
+--    4. UPDATE+INSERT Warehouse_Inventory (upsert — handles first-time stocking)
 --    5. INSERT Financial_Transaction (type='Procurement')
 --    6. INSERT Audit_Log
 --
@@ -41,10 +41,10 @@ BEGIN TRY
 
     -- Step 1: Insert procurement in Pending state
     INSERT INTO Procurement
-        (resource_id, warehouse_id, quantity, unit_cost,
+        (resource_id, warehouse_id, disaster_event_id, quantity, unit_cost,
          procurement_date, supplier_name, approved_by, status)
     VALUES
-        (@resource_id, @warehouse_id, @quantity, @unit_cost,
+        (@resource_id, @warehouse_id, @disaster_event_id, @quantity, @unit_cost,
          GETDATE(), @supplier_name, @approved_by_user, 'Pending');
 
     SET @new_procurement_id = SCOPE_IDENTITY();
@@ -53,15 +53,12 @@ BEGIN TRY
     IF @new_procurement_id IS NULL
         RAISERROR('ERROR: Procurement insert failed. Rolling back.', 16, 1);
 
-    -- Step 2: Create matching approval request
-    --  (re-using Approval_Request; allocation_id is a required FK — we point to
-    --   a sentinel allocation or extend the table. For this demo we use allocation_id=1.)
-    --  In production, Approval_Request would have a nullable procurement_id FK instead.
+    -- Step 2: Create matching approval request using procurement_id.
     INSERT INTO Approval_Request
-        (request_type, requested_by, approved_by, allocation_id,
+        (request_type, requested_by, approved_by, procurement_id,
          status, request_date, resolved_date, remarks)
     VALUES
-        ('Procurement', @approved_by_user, NULL, 1,
+        ('Procurement', @approved_by_user, NULL, @new_procurement_id,
          'Pending', GETDATE(), NULL,
          'Procurement #' + CAST(@new_procurement_id AS VARCHAR) + ' awaiting finance approval');
 
@@ -103,7 +100,8 @@ DECLARE @thresh_p2          INT            = 100;
 SELECT  @res_id_p2     = resource_id,
         @wh_id_p2      = warehouse_id,
         @qty_p2        = quantity,
-        @unit_cost_p2  = unit_cost
+        @unit_cost_p2  = unit_cost,
+        @disaster_id_p2 = ISNULL(disaster_event_id, @disaster_id_p2)
 FROM    Procurement
 WHERE   procurement_id = @proc_id_p2;
 
@@ -119,18 +117,22 @@ BEGIN TRY
 
     PRINT 'Procurement status → Completed.';
 
-    -- Step 4: MERGE into Warehouse_Inventory
-    --   If this warehouse already has this resource → add to existing quantity
-    --   If this is a first-time stocking → insert a new row
-    MERGE Warehouse_Inventory AS target
-    USING (SELECT @wh_id_p2 AS warehouse_id, @res_id_p2 AS resource_id) AS source
-    ON (target.warehouse_id = source.warehouse_id AND target.resource_id = source.resource_id)
-    WHEN MATCHED THEN
-        UPDATE SET quantity     = target.quantity + @qty_p2,
-                   last_updated = GETDATE()
-    WHEN NOT MATCHED THEN
-        INSERT (warehouse_id, resource_id, quantity, threshold_level, last_updated)
+    -- Step 4: Upsert Warehouse_Inventory using UPDATE + INSERT.
+    -- MERGE is avoided because Warehouse_Inventory has an INSTEAD OF UPDATE trigger.
+    -- UPDATE handled by trg_Procurement_IncrementInventory
+    /*
+    UPDATE Warehouse_Inventory
+    SET    quantity     = quantity + @qty_p2,
+           last_updated = GETDATE()
+    WHERE  warehouse_id = @wh_id_p2
+      AND  resource_id  = @res_id_p2;
+
+    IF @@ROWCOUNT = 0
+    BEGIN
+        INSERT INTO Warehouse_Inventory (warehouse_id, resource_id, quantity, threshold_level, last_updated)
         VALUES (@wh_id_p2, @res_id_p2, @qty_p2, @thresh_p2, GETDATE());
+    END
+    */
 
     PRINT 'Warehouse_Inventory upserted — resource_id: ' + CAST(@res_id_p2 AS VARCHAR)
         + ' in warehouse_id: ' + CAST(@wh_id_p2 AS VARCHAR);
@@ -177,10 +179,10 @@ BEGIN TRY
     BEGIN TRANSACTION T3_Fail;
 
     INSERT INTO Procurement
-        (resource_id, warehouse_id, quantity, unit_cost,
+        (resource_id, warehouse_id, disaster_event_id, quantity, unit_cost,
          procurement_date, supplier_name, approved_by, status)
     VALUES
-        (1, 1, 0, 3500.00, GETDATE(), 'Bad Supplier', 1, 'Pending');
+        (1, 1, 1, 0, 3500.00, GETDATE(), 'Bad Supplier', 1, 'Pending');
         -- quantity=0 violates CHECK (quantity > 0)
 
     COMMIT TRANSACTION T3_Fail;

@@ -19,7 +19,7 @@ DECLARE @closed_by_user     INT  = 2;        -- coord_sara
 
 -- ── Internal ──
 DECLARE @current_status     VARCHAR(20);
-DECLARE @event_name         VARCHAR(255);   
+DECLARE @event_name         VARCHAR(255);
 DECLARE @teams_freed        INT  = 0;
 DECLARE @assignments_closed INT  = 0;
 DECLARE @allocs_closed      INT  = 0;
@@ -29,7 +29,7 @@ PRINT '=== TRANSACTION 4: Disaster Event Closure ===';
 PRINT 'Closing event_id: ' + CAST(@event_id_to_close AS VARCHAR);
 
 -- ══════════════════════════════════════════════════════════
---  HAPPY PATH — close an active event
+--  HAPPY PATH — close an active event  
 -- ══════════════════════════════════════════════════════════
 BEGIN TRY
     BEGIN TRANSACTION T4_EventClosure;

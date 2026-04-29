@@ -69,12 +69,28 @@ inventoryRouter.post('/allocate',
                 .input('requested_by', sql.Int, req.user.user_id)
                 .input('allocated_quantity', sql.Int, allocated_quantity)
                 .query(`
+          DECLARE @insertedAllocations TABLE (allocation_id INT);
+
           INSERT INTO Resource_Allocation
             (inventory_id, report_id, requested_by, allocated_quantity,
              dispatched_quantity, consumed_quantity, allocation_date, status)
-          OUTPUT INSERTED.allocation_id
+          OUTPUT INSERTED.allocation_id INTO @insertedAllocations
           VALUES (@inventory_id, @report_id, @requested_by, @allocated_quantity,
-                  0, 0, GETDATE(), 'Pending')
+                  0, 0, GETDATE(), 'Pending');
+
+          SELECT allocation_id FROM @insertedAllocations;
+        `);
+
+            const req3 = new (require('mssql').Request)(tx);
+            await req3
+                .input('requested_by', sql.Int, req.user.user_id)
+                .input('allocation_id', sql.Int, alloc.recordset[0].allocation_id)
+                .input('remarks', sql.Text, 'Auto-generated from inventory allocation request')
+                .query(`
+          INSERT INTO Approval_Request
+            (request_type, requested_by, approved_by, allocation_id, status, request_date, resolved_date, remarks)
+          VALUES
+            ('Resource_Allocation', @requested_by, NULL, @allocation_id, 'Pending', GETDATE(), NULL, @remarks)
         `);
 
             await tx.commit();

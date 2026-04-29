@@ -121,13 +121,17 @@ router.post('/', async (req, res) => {
       .input('severity_level',    sql.VarChar,      severity_level)
       .input('description',       sql.Text,         description)
       .query(`
+        DECLARE @insertedReports TABLE (report_id INT);
+
         INSERT INTO Emergency_Report
           (citizen_id, disaster_event_id, location, latitude, longitude,
            disaster_type, severity_level, report_time, status, description)
-        OUTPUT INSERTED.report_id
+        OUTPUT INSERTED.report_id INTO @insertedReports
         VALUES
           (@citizen_id, @disaster_event_id, @location, @latitude, @longitude,
-           @disaster_type, @severity_level, GETDATE(), 'Active', @description)
+           @disaster_type, @severity_level, GETDATE(), 'Active', @description);
+
+        SELECT report_id FROM @insertedReports;
       `);
     res.status(201).json({ report_id: result.recordset[0].report_id, message: 'Report submitted' });
   } catch (err) {

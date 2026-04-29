@@ -250,10 +250,12 @@ LEFT JOIN (
            SUM(CASE WHEN approval_status = 'Pending' THEN amount ELSE 0 END) AS pending_expenses
     FROM Expense GROUP BY disaster_event_id
 ) EXP ON EXP.disaster_event_id = DE.event_id
-CROSS JOIN (
-    SELECT SUM(CASE WHEN status = 'Completed' THEN quantity * unit_cost ELSE 0 END) AS procurement_spend
-    FROM Procurement
-) PR;
+LEFT JOIN (
+    SELECT disaster_event_id, SUM(amount) AS procurement_spend
+    FROM Financial_Transaction
+    WHERE transaction_type = 'Procurement'
+    GROUP BY disaster_event_id
+) PR ON PR.disaster_event_id = DE.event_id;
 GO
 
 -- ============================================================
@@ -471,10 +473,12 @@ LEFT JOIN (
            SUM(CASE WHEN approval_status = 'Approved' THEN amount ELSE 0 END) AS approved_expenses
     FROM Expense GROUP BY disaster_event_id
 ) EXP ON EXP.disaster_event_id = DE.event_id
-CROSS JOIN (
-    SELECT SUM(CASE WHEN status = 'Completed' THEN quantity * unit_cost ELSE 0 END) AS procurement_spend
-    FROM Procurement
-) PR
+LEFT JOIN (
+    SELECT disaster_event_id, SUM(amount) AS procurement_spend
+    FROM Financial_Transaction
+    WHERE transaction_type = 'Procurement'
+    GROUP BY disaster_event_id
+) PR ON PR.disaster_event_id = DE.event_id
 ORDER BY net_balance DESC;
 
 SET STATISTICS TIME OFF;

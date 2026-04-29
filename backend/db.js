@@ -1,69 +1,50 @@
-// const sql = require("mssql");
-
-// const config = {
-//     user: process.env.DB_USER,
-//     password: process.env.DB_PASSWORD,
-//     server: process.env.DB_SERVER || "localhost",
-//     port: parseInt(process.env.DB_PORT) || 1433,
-//     database: process.env.DB_DATABASE,
-//     options: {
-//         encrypt: false,
-//         trustServerCertificate: true,
-//         enableArithAbort: true
-//     },
-//     connectionTimeout: 30000,
-//     requestTimeout: 30000
-// };
-
-// let pool = null;
-
-// const connectDB = async () => {
-//     try {
-//         pool = await sql.connect(config);
-//         console.log(`✅ Connected to SQL Server — database: ${process.env.DB_DATABASE}`);
-//         return pool;
-//     } catch (err) {
-//         console.error("❌ DB Connection Error:", err.message);
-//         process.exit(1);
-//     }
-// };
-
-// const getPool = () => {
-//     if (!pool) throw new Error("DB pool not initialized. Call connectDB() first.");
-//     return pool;
-// };
-
-// module.exports = { sql, connectDB, getPool };
-
-// db.js — mssql connection pool (singleton)
 const sql = require('mssql');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const config = {
-    server: process.env.DB_SERVER,
-    database: process.env.DB_DATABASE,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    port: parseInt(process.env.DB_PORT) || 1433,
-    options: {
-        encrypt: false,   // true if using Azure
-        trustServerCertificate: true,  // for local dev / self-signed certs
-    },
-    pool: {
-        max: 10,
-        min: 0,
-        idleTimeoutMillis: 30000,
-    },
+  server: process.env.DB_SERVER || 'localhost',
+  database: process.env.DB_DATABASE || 'ProjectDB',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  port: parseInt(process.env.DB_PORT, 10) || 1433,
+  options: {
+    encrypt: false,
+    trustServerCertificate: true,
+    enableArithAbort: true,
+  },
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000,
+  },
+  connectionTimeout: 30000,
+  requestTimeout: 30000,
 };
 
-let pool = null;
+let poolPromise = null;
 
 async function getPool() {
-    if (!pool) {
-        pool = await sql.connect(config);
-        console.log('✅  Connected to SQL Server —', process.env.DB_DATABASE);
-    }
-    return pool;
+  if (!poolPromise) {
+    poolPromise = sql.connect(config).catch((err) => {
+      poolPromise = null;
+      throw err;
+    });
+  }
+
+  const pool = await poolPromise;
+  if (!pool.connected) {
+    poolPromise = null;
+    return getPool();
+  }
+
+  return pool;
 }
 
-module.exports = { getPool, sql };
+async function closePool() {
+  if (!poolPromise) return;
+  const pool = await poolPromise;
+  poolPromise = null;
+  await pool.close();
+}
+
+module.exports = { getPool, closePool, sql };

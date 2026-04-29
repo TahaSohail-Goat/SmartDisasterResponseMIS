@@ -6,6 +6,7 @@
 
 /* ── CSS Variables ──────────────────────────────────────────── */
 :root {
+  color-scheme: dark;
   /* Base palette */
   --bg-primary: #0a0e1a;
   --bg-secondary: #111827;

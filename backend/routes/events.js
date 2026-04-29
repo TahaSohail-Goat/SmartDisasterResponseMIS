@@ -88,28 +88,96 @@ router.post('/', authorize('System_Admin', 'Disaster_Coordinator'), async (req, 
 
 // ── PATCH /api/events/:id/close — close event (Admin only) ───
 router.patch('/:id/close', authorize('System_Admin'), async (req, res) => {
+  const pool = await getPool();
+  const tx = new sql.Transaction(pool);
+
   try {
-    const pool = await getPool();
-    await pool.request()
+    await tx.begin();
+
+    const eventResult = await new sql.Request(tx)
       .input('id', sql.Int, req.params.id)
+      .query(`
+        SELECT event_id, event_name, status
+        FROM Disaster_Event WITH (UPDLOCK, ROWLOCK)
+        WHERE event_id = @id
+      `);
+
+    if (!eventResult.recordset.length) {
+      await tx.rollback();
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const event = eventResult.recordset[0];
+    if (['Completed', 'Inactive'].includes(event.status)) {
+      await tx.rollback();
+      return res.status(409).json({ error: `Event is already closed (${event.status})` });
+    }
+
+    await new sql.Request(tx)
+      .input('id', sql.Int, req.params.id)
+      .query(`
+        UPDATE Disaster_Event
+        SET status = 'Completed', end_date = GETDATE()
+        WHERE event_id = @id;
+
+        UPDATE TA
+        SET TA.status = 'Completed',
+            TA.completed_at = COALESCE(TA.completed_at, GETDATE())
+        FROM Team_Assignment TA
+        INNER JOIN Emergency_Report ER ON ER.report_id = TA.report_id
+        WHERE ER.disaster_event_id = @id
+        AND TA.status IN ('Active', 'Pending');
+
+        UPDATE RT
+        SET RT.availability_status = 'Available'
+        FROM Rescue_Team RT
+        WHERE RT.team_id IN (
+          SELECT DISTINCT TA.rescue_team_id
+          FROM Team_Assignment TA
+          INNER JOIN Emergency_Report ER ON ER.report_id = TA.report_id
+          WHERE ER.disaster_event_id = @id
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM Team_Assignment OpenTA
+          WHERE OpenTA.rescue_team_id = RT.team_id
+          AND OpenTA.status IN ('Active', 'Pending')
+        );
+
+        UPDATE RA
+        SET RA.status = 'Completed'
+        FROM Resource_Allocation RA
+        INNER JOIN Emergency_Report ER ON ER.report_id = RA.report_id
+        WHERE ER.disaster_event_id = @id
+        AND RA.status IN ('Active', 'Pending');
+
+        UPDATE AR
+        SET AR.status = 'Rejected',
+            AR.resolved_date = GETDATE(),
+            AR.remarks = COALESCE(CAST(AR.remarks AS VARCHAR(MAX)) + ' | ', '') + 'Lapsed because parent event was closed.'
+        FROM Approval_Request AR
+        INNER JOIN Resource_Allocation RA ON RA.allocation_id = AR.allocation_id
+        INNER JOIN Emergency_Report ER ON ER.report_id = RA.report_id
+        WHERE ER.disaster_event_id = @id
+        AND AR.status = 'Pending';
+      `);
+
+    await new sql.Request(tx)
       .input('user_id', sql.Int, req.user.user_id)
-      .execute('sp_CloseDisasterEvent');   // wraps Transaction 4 logic
+      .input('record_id', sql.Int, req.params.id)
+      .input('old_value', sql.NVarChar(sql.MAX), JSON.stringify({ status: event.status }))
+      .input('new_value', sql.NVarChar(sql.MAX), JSON.stringify({ status: 'Completed' }))
+      .input('ip', sql.VarChar, req.ip || null)
+      .query(`
+        INSERT INTO Audit_Log (user_id, action, table_name, record_id, old_value, new_value, ip_address)
+        VALUES (@user_id, 'UPDATE', 'Disaster_Event', @record_id, @old_value, @new_value, @ip)
+      `);
+
+    await tx.commit();
     res.json({ message: 'Event closed successfully' });
   } catch (err) {
-    // Fallback: direct update if stored proc not created yet
-    try {
-      const pool2 = await getPool();
-      await pool2.request()
-        .input('id', sql.Int, req.params.id)
-        .query(`
-          UPDATE Disaster_Event
-          SET status='Completed', end_date=GETDATE()
-          WHERE event_id=@id AND status='Active'
-        `);
-      res.json({ message: 'Event closed' });
-    } catch (err2) {
-      res.status(500).json({ error: err2.message });
-    }
+    try { await tx.rollback(); } catch { /* transaction may already be closed */ }
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -12,7 +12,22 @@ financeRouter.get('/summary', authorize('System_Admin', 'Finance_Officer', 'Disa
     try {
         const pool = await getPool();
         const result = await pool.request().query(`
-      SELECT * FROM vw_FinanceOfficer_Summary ORDER BY net_balance DESC
+      SELECT
+        event_id,
+        event_name,
+        disaster_type,
+        event_status,
+        start_date,
+        donation_count,
+        total_donations,
+        expense_count,
+        approved_expenses,
+        pending_expenses,
+        procurement_spend,
+        approved_expenses + procurement_spend AS total_expenses,
+        net_balance
+      FROM vw_FinanceOfficer_Summary
+      ORDER BY net_balance DESC
     `);
         res.json(result.recordset);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -43,6 +58,10 @@ financeRouter.get('/transactions', authorize('System_Admin', 'Finance_Officer'),
 financeRouter.post('/donations', authorize('System_Admin', 'Finance_Officer'), async (req, res) => {
     const { citizen_id, disaster_event_id, donor_name, donor_type,
         amount, payment_method, transaction_reference } = req.body;
+
+    if (!citizen_id || !disaster_event_id || !donor_name || !donor_type || !amount || !payment_method || !transaction_reference) {
+        return res.status(400).json({ error: 'All fields are required' });
+    }
 
     const pool = await getPool();
     const tx = new (require('mssql').Transaction)(await pool);

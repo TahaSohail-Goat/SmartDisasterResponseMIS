@@ -63,7 +63,8 @@ BEGIN
     SET    RT.availability_status = 'Busy'
     FROM   Rescue_Team RT
     INNER JOIN inserted i ON i.rescue_team_id = RT.team_id
-    WHERE  RT.availability_status != 'Busy';   -- avoid redundant writes
+    WHERE  i.status = 'Active'
+    AND    RT.availability_status != 'Busy';   -- avoid redundant writes
 
     -- Audit each assignment
     INSERT INTO Audit_Log (user_id, action, table_name, record_id, old_value, new_value, ip_address)
@@ -286,23 +287,34 @@ BEGIN
         WHERE i.status = 'Completed' AND d.status = 'Pending'
     ) RETURN;
 
-    -- MERGE: add to existing stock, or create row if first-time stocking
-    MERGE Warehouse_Inventory AS target
-    USING (
+    -- Use UPDATE + INSERT instead of MERGE because Warehouse_Inventory has an INSTEAD OF UPDATE trigger.
+    -- SQL Server blocks MERGE when only some actions have INSTEAD OF triggers.
+    UPDATE WI
+    SET    WI.quantity     = WI.quantity + src.quantity,
+           WI.last_updated = GETDATE()
+    FROM   Warehouse_Inventory WI
+    INNER JOIN (
         SELECT i.warehouse_id, i.resource_id, i.quantity
         FROM   inserted i
         INNER JOIN deleted d ON d.procurement_id = i.procurement_id
         WHERE  i.status = 'Completed' AND d.status = 'Pending'
-    ) AS source ON (
-        target.warehouse_id = source.warehouse_id
-        AND target.resource_id = source.resource_id
-    )
-    WHEN MATCHED THEN
-        UPDATE SET quantity     = target.quantity + source.quantity,
-                   last_updated = GETDATE()
-    WHEN NOT MATCHED THEN
-        INSERT (warehouse_id, resource_id, quantity, threshold_level, last_updated)
-        VALUES (source.warehouse_id, source.resource_id, source.quantity, 50, GETDATE());
+    ) src ON src.warehouse_id = WI.warehouse_id
+         AND src.resource_id  = WI.resource_id;
+
+    INSERT INTO Warehouse_Inventory (warehouse_id, resource_id, quantity, threshold_level, last_updated)
+    SELECT src.warehouse_id, src.resource_id, src.quantity, 50, GETDATE()
+    FROM (
+        SELECT i.warehouse_id, i.resource_id, i.quantity
+        FROM   inserted i
+        INNER JOIN deleted d ON d.procurement_id = i.procurement_id
+        WHERE  i.status = 'Completed' AND d.status = 'Pending'
+    ) src
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM Warehouse_Inventory WI
+        WHERE WI.warehouse_id = src.warehouse_id
+          AND WI.resource_id  = src.resource_id
+    );
 
     INSERT INTO Audit_Log (user_id, action, table_name, record_id, old_value, new_value, ip_address)
     SELECT
