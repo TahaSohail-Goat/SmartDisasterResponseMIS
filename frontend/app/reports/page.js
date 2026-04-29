@@ -51,6 +51,12 @@ export default function ReportsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
+  }, [load]);
+
   const filtered = reports.filter(r =>
     !search ||
     r.location?.toLowerCase().includes(search.toLowerCase()) ||

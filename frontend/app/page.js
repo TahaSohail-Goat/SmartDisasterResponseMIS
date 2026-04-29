@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { api } from './lib/api';
 import { useAuth } from './context/AuthContext';
 import { getBadgeClass, fmt, fmtMoney } from './lib/utils';
@@ -27,7 +27,7 @@ export default function DashboardPage() {
 
   const canViewTeams = hasRole('System_Admin', 'Disaster_Coordinator', 'Rescue_Operator');
 
-  useEffect(() => {
+  const load = useCallback(() => {
     Promise.all([
       api.get('/api/events'),
       api.get('/api/reports'),
@@ -38,6 +38,14 @@ export default function DashboardPage() {
       setTeams(tm);
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
+  }, [load]);
 
   if (loading) return <div className="loading-container"><div className="spinner" /></div>;
 

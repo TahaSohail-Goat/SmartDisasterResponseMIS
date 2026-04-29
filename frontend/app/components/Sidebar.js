@@ -11,10 +11,13 @@ const NAV_ITEMS = [
   { href: '/reports',   label: 'Reports',      icon: '🚨', roles: null },   // citizens can submit; staff can update
   { href: '/teams',     label: 'Rescue Teams', icon: '🚁', roles: ['System_Admin','Disaster_Coordinator','Rescue_Operator'] },
   { href: '/inventory', label: 'Inventory',    icon: '📦', roles: ['System_Admin','Warehouse_Manager','Disaster_Coordinator'] },
+  { href: '/procurement', label: 'Procurement',  icon: '🛒', roles: ['System_Admin','Warehouse_Manager','Finance_Officer'] },
   { href: '/finance',   label: 'Finance',      icon: '💰', roles: ['System_Admin','Finance_Officer','Disaster_Coordinator'] },
   { href: '/hospitals', label: 'Hospitals',    icon: '🏥', roles: null },   // all can view; coordinator can admit
   { href: '/approvals', label: 'Approvals',    icon: '✅', roles: ['System_Admin','Disaster_Coordinator','Finance_Officer','Warehouse_Manager'] },
+  { href: '/analytics', label: 'Analytics',    icon: '📈', roles: null },
   { href: '/audit',     label: 'Audit Log',    icon: '🔍', roles: ['System_Admin'] },
+  { href: '/admin',     label: 'Admin',        icon: '👥', roles: ['System_Admin'] },
 ];
 
 const ROLE_COLORS = {

@@ -33,6 +33,12 @@ export default function ApprovalsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
+  }, [load]);
+
   async function decide(id, status) {
     setDeciding(id);
     try {
