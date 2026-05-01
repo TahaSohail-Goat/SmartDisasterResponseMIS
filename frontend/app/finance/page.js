@@ -111,7 +111,7 @@ export default function FinancePage() {
       </div>
 
       {/* Summary cards */}
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 20 }}>
+      <div className="stat-grid" style={{ marginBottom: 20 }}>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: '#10b98120' }}>💚</div>
           <div className="stat-info">
@@ -127,10 +127,10 @@ export default function FinancePage() {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: (netBalance >= 0 ? '#6366f1' : '#ef4444') + '20' }}>⚖️</div>
+          <div className="stat-icon" style={{ background: (netBalance >= 0 ? '#0ea5e9' : '#ef4444') + '20' }}>⚖️</div>
           <div className="stat-info">
             <div className="label">Net Balance</div>
-            <div className="value" style={{ color: netBalance >= 0 ? '#6366f1' : '#ef4444', fontSize: '1.2rem' }}>
+            <div className="value" style={{ color: netBalance >= 0 ? '#0ea5e9' : '#ef4444', fontSize: '1.2rem' }}>
               {fmtMoney(Math.abs(netBalance))}
             </div>
             <div style={{ fontSize: '0.72rem', color: netBalance >= 0 ? '#10b981' : '#ef4444', marginTop: 2 }}>
@@ -168,7 +168,7 @@ export default function FinancePage() {
                           <td style={{ fontWeight: 600 }}>{s.event_name || s.disaster_event_id}</td>
                           <td style={{ color: '#10b981', fontWeight: 600 }}>{fmtMoney(s.total_donations)}</td>
                           <td style={{ color: '#ef4444', fontWeight: 600 }}>{fmtMoney(s.total_expenses)}</td>
-                          <td style={{ fontWeight: 700, color: net >= 0 ? '#6366f1' : '#ef4444' }}>
+                          <td style={{ fontWeight: 700, color: net >= 0 ? '#0ea5e9' : '#ef4444' }}>
                             {net >= 0 ? '+' : '-'}{fmtMoney(Math.abs(net))}
                           </td>
                         </tr>
@@ -204,8 +204,8 @@ export default function FinancePage() {
                         <td>
                           <span style={{
                             padding: '3px 10px', borderRadius: 'var(--radius-full)', fontSize: '0.73rem', fontWeight: 600,
-                            background: t.transaction_type === 'Donation' ? '#10b98120' : t.transaction_type === 'Expense' ? '#ef444420' : '#6366f120',
-                            color: t.transaction_type === 'Donation' ? '#10b981' : t.transaction_type === 'Expense' ? '#ef4444' : '#6366f1',
+                            background: t.transaction_type === 'Donation' ? '#10b98120' : t.transaction_type === 'Expense' ? '#ef444420' : '#0ea5e920',
+                            color: t.transaction_type === 'Donation' ? '#10b981' : t.transaction_type === 'Expense' ? '#ef4444' : '#0ea5e9',
                           }}>{t.transaction_type}</span>
                         </td>
                         <td style={{ fontSize: '0.82rem' }}>{t.event_name}</td>

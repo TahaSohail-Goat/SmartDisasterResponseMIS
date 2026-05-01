@@ -8,23 +8,31 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   AreaChart, Area,
 } from 'recharts';
+import { motion } from 'framer-motion';
 
 /* ── Color palette ─────────────────────────────────────────── */
 const SEVERITY_COLORS = { Critical: '#ef4444', High: '#f97316', Medium: '#f59e0b', Low: '#10b981' };
-const CHART_COLORS = ['#6366f1', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6'];
+const CHART_COLORS = ['#0ea5e9', '#06b6d4', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6'];
 const APPROVAL_COLORS = { Pending: '#f59e0b', Approved: '#10b981', Rejected: '#ef4444' };
 
 /* ── Stat Card ─────────────────────────────────────────────── */
-function StatCard({ icon, label, value, color, sub }) {
+function StatCard({ icon, label, value, color, sub, index = 0 }) {
   return (
-    <div className="stat-card fade-in-up">
+    <motion.div 
+      className="stat-card"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1, duration: 0.4, ease: "easeOut" }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+    >
       <div className="stat-icon" style={{ background: `${color}20`, fontSize: '1.4rem' }}>{icon}</div>
       <div className="stat-info">
         <div className="label">{label}</div>
         <div className="value" style={{ color }}>{value ?? '—'}</div>
         {sub && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -48,15 +56,21 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 /* ── Chart Card wrapper ────────────────────────────────────── */
-function ChartCard({ title, subtitle, children, className = '' }) {
+function ChartCard({ title, subtitle, children, className = '', index = 0 }) {
   return (
-    <div className={`card fade-in-up ${className}`}>
+    <motion.div 
+      className={`card ${className}`}
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 + (index * 0.15), duration: 0.5, ease: "easeOut" }}
+      whileHover={{ y: -2 }}
+    >
       <div style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{title}</h3>
         {subtitle && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{subtitle}</p>}
       </div>
       {children}
-    </div>
+    </motion.div>
   );
 }
 
@@ -132,28 +146,28 @@ export default function AnalyticsPage() {
 
       {/* ── KPI Strip ──────────────────────────────────────── */}
       {overview && (
-        <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-          <StatCard icon="🌪️" label="Active Events"      value={overview.active_events}     color="#ef4444" sub="currently monitored" />
-          <StatCard icon="🚨" label="Open Reports"        value={overview.open_reports}       color="#f97316" sub={`${overview.critical_reports} critical`} />
-          <StatCard icon="🚁" label="Available Teams"     value={overview.available_teams}    color="#10b981" />
-          <StatCard icon="⚠️" label="Low Stock Items"     value={overview.low_stock_items}    color="#f59e0b" sub={`${overview.pending_approvals} pending approvals`} />
+        <div className="stat-grid">
+          <StatCard icon="🌪️" label="Active Events"      value={overview.active_events}     color="#ef4444" sub="currently monitored" index={1} />
+          <StatCard icon="🚨" label="Open Reports"        value={overview.open_reports}       color="#f97316" sub={`${overview.critical_reports} critical`} index={2} />
+          <StatCard icon="🚁" label="Available Teams"     value={overview.available_teams}    color="#10b981" index={3} />
+          <StatCard icon="⚠️" label="Low Stock Items"     value={overview.low_stock_items}    color="#f59e0b" sub={`${overview.pending_approvals} pending approvals`} index={4} />
         </div>
       )}
 
       {/* ── Finance KPIs ───────────────────────────────────── */}
       {overview && (
-        <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 24 }}>
-          <StatCard icon="💚" label="Total Donations"  value={fmtMoney(overview.total_donations)} color="#10b981" />
-          <StatCard icon="💸" label="Total Spend"      value={fmtMoney(overview.total_spend)}     color="#ef4444" />
+        <div className="stat-grid">
+          <StatCard icon="💚" label="Total Donations"  value={fmtMoney(overview.total_donations)} color="#10b981" index={5} />
+          <StatCard icon="💸" label="Total Spend"      value={fmtMoney(overview.total_spend)}     color="#ef4444" index={6} />
           <StatCard icon="⚖️" label="Net Balance"      value={fmtMoney((overview.total_donations || 0) - (overview.total_spend || 0))}
-            color={(overview.total_donations || 0) >= (overview.total_spend || 0) ? '#6366f1' : '#ef4444'}
-            sub={(overview.total_donations || 0) >= (overview.total_spend || 0) ? '▲ Surplus' : '▼ Deficit'} />
+            color={(overview.total_donations || 0) >= (overview.total_spend || 0) ? '#0ea5e9' : '#ef4444'}
+            sub={(overview.total_donations || 0) >= (overview.total_spend || 0) ? '▲ Surplus' : '▼ Deficit'} index={7} />
         </div>
       )}
 
       {/* ── Row 1: Severity Donut + Reports by Location ──── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20, marginBottom: 20 }}>
-        <ChartCard title="Incident Severity" subtitle="Report distribution by severity level" className="stagger-1">
+        <ChartCard title="Incident Severity" subtitle="Report distribution by severity level" index={1}>
           {severityData.length === 0
             ? <div className="empty-state"><p>No data</p></div>
             : <ResponsiveContainer width="100%" height={280}>
@@ -177,7 +191,7 @@ export default function AnalyticsPage() {
           }
         </ChartCard>
 
-        <ChartCard title="Reports by Location" subtitle="Top 10 incident hotspots" className="stagger-2">
+        <ChartCard title="Reports by Location" subtitle="Top 10 incident hotspots" index={2}>
           {byLocation.length === 0
             ? <div className="empty-state"><p>No data</p></div>
             : <ResponsiveContainer width="100%" height={280}>
@@ -187,7 +201,7 @@ export default function AnalyticsPage() {
                   <YAxis type="category" dataKey="location" width={140}
                     tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="report_count" name="Reports" fill="#6366f1" radius={[0, 6, 6, 0]} barSize={18} />
+                  <Bar dataKey="report_count" name="Reports" fill="#0ea5e9" radius={[0, 6, 6, 0]} barSize={18} />
                 </BarChart>
               </ResponsiveContainer>
           }
@@ -196,7 +210,7 @@ export default function AnalyticsPage() {
 
       {/* ── Row 2: Resource Utilization + Finance ─────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-        <ChartCard title="Resource Utilization" subtitle="Allocated vs dispatched vs consumed" className="stagger-3">
+        <ChartCard title="Resource Utilization" subtitle="Allocated vs dispatched vs consumed" index={3}>
           {resources.length === 0
             ? <div className="empty-state"><p>No data</p></div>
             : <ResponsiveContainer width="100%" height={300}>
@@ -209,7 +223,7 @@ export default function AnalyticsPage() {
                     iconType="circle" iconSize={8}
                     formatter={(value) => <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{value}</span>}
                   />
-                  <Bar dataKey="allocated_quantity"  name="Allocated"  fill="#6366f1" radius={[4, 4, 0, 0]} barSize={14} />
+                  <Bar dataKey="allocated_quantity"  name="Allocated"  fill="#0ea5e9" radius={[4, 4, 0, 0]} barSize={14} />
                   <Bar dataKey="dispatched_quantity" name="Dispatched" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={14} />
                   <Bar dataKey="consumed_quantity"   name="Consumed"   fill="#10b981" radius={[4, 4, 0, 0]} barSize={14} />
                 </BarChart>
@@ -217,7 +231,7 @@ export default function AnalyticsPage() {
           }
         </ChartCard>
 
-        <ChartCard title="Finance by Disaster Event" subtitle="Donations vs expenses per event" className="stagger-4">
+        <ChartCard title="Finance by Disaster Event" subtitle="Donations vs expenses per event" index={4}>
           {finByEvent.length === 0
             ? <div className="empty-state"><p>No data</p></div>
             : <ResponsiveContainer width="100%" height={300}>

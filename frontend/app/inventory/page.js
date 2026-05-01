@@ -12,13 +12,13 @@ export default function InventoryPage() {
   const canAllocate = hasRole('System_Admin', 'Disaster_Coordinator', 'Rescue_Operator');
 
   const [inventory, setInventory] = useState([]);
-  const [reports, setReports]     = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [search, setSearch]       = useState('');
-  const [filterAlert, setFA]      = useState('');
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterAlert, setFA] = useState('');
   const [showAlloc, setShowAlloc] = useState(false);
-  const [submitting, setSub]      = useState(false);
-  const [form, setForm]           = useState({ inventory_id: '', report_id: '', allocated_quantity: '' });
+  const [submitting, setSub] = useState(false);
+  const [form, setForm] = useState({ inventory_id: '', report_id: '', allocated_quantity: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,12 +114,16 @@ export default function InventoryPage() {
         <div className="table-header">
           <h3>Inventory ({filtered.length} items)</h3>
           <div style={{ display: 'flex', gap: 8 }}>
-            <span style={{ padding: '4px 10px', borderRadius: 'var(--radius-full)',
-              background: 'var(--warning-subtle)', color: 'var(--warning)', fontSize: '0.75rem', fontWeight: 600 }}>
+            <span style={{
+              padding: '4px 10px', borderRadius: 'var(--radius-full)',
+              background: 'var(--warning-subtle)', color: 'var(--warning)', fontSize: '0.75rem', fontWeight: 600
+            }}>
               {lowStockCount} Low Stock
             </span>
-            <span style={{ padding: '4px 10px', borderRadius: 'var(--radius-full)',
-              background: 'var(--success-subtle)', color: 'var(--success)', fontSize: '0.75rem', fontWeight: 600 }}>
+            <span style={{
+              padding: '4px 10px', borderRadius: 'var(--radius-full)',
+              background: 'var(--success-subtle)', color: 'var(--success)', fontSize: '0.75rem', fontWeight: 600
+            }}>
               {inventory.length - lowStockCount} Normal
             </span>
           </div>
@@ -154,8 +158,8 @@ export default function InventoryPage() {
                         <td>
                           <span style={{
                             padding: '3px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.73rem', fontWeight: 600,
-                            background: item.resource_type === 'Food' ? '#10b98120' : item.resource_type === 'Medicine' ? '#3b82f620' : item.resource_type === 'Water' ? '#06b6d420' : '#8b5cf620',
-                            color: item.resource_type === 'Food' ? '#10b981' : item.resource_type === 'Medicine' ? '#3b82f6' : item.resource_type === 'Water' ? '#06b6d4' : '#8b5cf6',
+                            background: item.resource_type === 'Food' ? '#10b98120' : item.resource_type === 'Medicine' ? '#3b82f620' : item.resource_type === 'Water' ? '#06b6d420' : '#06b6d420',
+                            color: item.resource_type === 'Food' ? '#10b981' : item.resource_type === 'Medicine' ? '#3b82f6' : item.resource_type === 'Water' ? '#06b6d4' : '#06b6d4',
                           }}>{item.resource_type}</span>
                         </td>
                         <td style={{ fontSize: '0.82rem' }}>{item.warehouse_name}</td>
@@ -170,9 +174,11 @@ export default function InventoryPage() {
                         <td style={{ minWidth: 140 }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <span style={{ padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.7rem', fontWeight: 600,
+                              <span style={{
+                                padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.7rem', fontWeight: 600,
                                 background: isOut ? 'rgba(127,29,29,0.2)' : isLow ? 'var(--danger-subtle)' : 'var(--success-subtle)',
-                                color: isOut ? '#fca5a5' : isLow ? 'var(--danger)' : 'var(--success)' }}>
+                                color: isOut ? '#fca5a5' : isLow ? 'var(--danger)' : 'var(--success)'
+                              }}>
                                 {isOut ? '🚫 Out of Stock' : isLow ? '⚠ Low Stock' : '✓ OK'}
                               </span>
                               {item.pending_procurement_qty > 0 && (
@@ -203,8 +209,10 @@ export default function InventoryPage() {
             </button>
           </>
         }>
-        <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--info-subtle)',
-          color: 'var(--info)', fontSize: '0.82rem', marginBottom: 16 }}>
+        <div style={{
+          padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--info-subtle)',
+          color: 'var(--info)', fontSize: '0.82rem', marginBottom: 16
+        }}>
           ℹ️ Allocation will be created with Pending status and requires approval.
         </div>
         <div className="form-group">

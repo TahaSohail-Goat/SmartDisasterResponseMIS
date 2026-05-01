@@ -69,7 +69,7 @@ export default function AuditPage() {
       </div>
 
       {/* Stats bar */}
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 20 }}>
+      <div className="stat-grid">
         {['INSERT','UPDATE','DELETE'].map(action => {
           const count = logs.filter(l => l.action === action).length;
           const color = ACTION_COLORS[action];
@@ -131,8 +131,8 @@ export default function AuditPage() {
                       <td>
                         <span style={{
                           padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: '0.72rem', fontWeight: 700,
-                          background: (ACTION_COLORS[l.action] || '#6366f1') + '20',
-                          color: ACTION_COLORS[l.action] || '#6366f1',
+                          background: (ACTION_COLORS[l.action] || '#0ea5e9') + '20',
+                          color: ACTION_COLORS[l.action] || '#0ea5e9',
                         }}>{l.action}</span>
                       </td>
                       <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{l.table_name}</td>

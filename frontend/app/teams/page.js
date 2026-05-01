@@ -11,14 +11,14 @@ export default function TeamsPage() {
   const toast = useToast();
   const canAssign = hasRole('System_Admin', 'Disaster_Coordinator', 'Rescue_Operator');
 
-  const [teams, setTeams]     = useState([]);
+  const [teams, setTeams] = useState([]);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch]   = useState('');
+  const [search, setSearch] = useState('');
   const [filterStatus, setFS] = useState('');
   const [showAssign, setShowAssign] = useState(false);
-  const [submitting, setSub]  = useState(false);
-  const [form, setForm]       = useState({ rescue_team_id: '', report_id: '', notes: '' });
+  const [submitting, setSub] = useState(false);
+  const [form, setForm] = useState({ rescue_team_id: '', report_id: '', notes: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,6 +63,14 @@ export default function TeamsPage() {
     finally { setSub(false); }
   }
 
+  async function handleMarkOnScene(teamId) {
+    try {
+      await api.patch(`/api/teams/${teamId}/on-scene`);
+      toast.success('Team marked as On-Scene (Busy)');
+      load();
+    } catch (err) { toast.error(err.message); }
+  }
+
   const STATUS_COLORS = {
     Available: '#10b981', Busy: '#ef4444', Assigned: '#3b82f6', Completed: '#8b95a8',
   };
@@ -79,8 +87,25 @@ export default function TeamsPage() {
         )}
       </div>
 
+      {/* Lifecycle info banner */}
+      <div style={{
+        padding: '10px 16px', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)',
+        border: '1px solid var(--border-primary)', marginBottom: 20, display: 'flex',
+        alignItems: 'center', gap: 12, fontSize: '0.8rem', color: 'var(--text-secondary)',
+        flexWrap: 'wrap',
+      }}>
+        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Lifecycle:</span>
+        <span style={{ color: '#10b981', fontWeight: 600 }}>✅ Available</span>
+        <span style={{ color: 'var(--text-muted)' }}>→</span>
+        <span style={{ color: '#3b82f6', fontWeight: 600 }}>🔵 Assigned</span>
+        <span style={{ color: 'var(--text-muted)' }}>→</span>
+        <span style={{ color: '#ef4444', fontWeight: 600 }}>🔴 Busy (On-Scene)</span>
+        <span style={{ color: 'var(--text-muted)' }}>→</span>
+        <span style={{ color: '#10b981', fontWeight: 600 }}>✅ Available</span>
+      </div>
+
       {/* Status summary cards */}
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
+      <div className="stat-grid">
         {['Available', 'Busy', 'Assigned', 'Completed'].map(s => {
           const count = teams.filter(t => t.availability_status === s).length;
           const color = STATUS_COLORS[s];
@@ -124,6 +149,7 @@ export default function TeamsPage() {
                   <tr>
                     <th>Team Name</th><th>Type</th><th>Location</th>
                     <th>Status</th><th>Size</th><th>Contact</th>
+                    {canAssign && <th>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -133,8 +159,8 @@ export default function TeamsPage() {
                       <td>
                         <span style={{
                           padding: '3px 10px', borderRadius: 'var(--radius-full)',
-                          background: t.team_type === 'Medical' ? '#3b82f620' : t.team_type === 'Fire' ? '#f9731620' : '#6366f120',
-                          color: t.team_type === 'Medical' ? '#3b82f6' : t.team_type === 'Fire' ? '#f97316' : '#6366f1',
+                          background: t.team_type === 'Medical' ? '#3b82f620' : t.team_type === 'Fire' ? '#f9731620' : '#0ea5e920',
+                          color: t.team_type === 'Medical' ? '#3b82f6' : t.team_type === 'Fire' ? '#f97316' : '#0ea5e9',
                           fontSize: '0.75rem', fontWeight: 600,
                         }}>{t.team_type}</span>
                       </td>
@@ -145,6 +171,28 @@ export default function TeamsPage() {
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}> members</span>
                       </td>
                       <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{t.contact_number}</td>
+                      {canAssign && (
+                        <td>
+                          {t.availability_status === 'Assigned' && (
+                            <button className="btn btn-sm" onClick={() => handleMarkOnScene(t.team_id)}
+                              style={{
+                                background: '#ef444420', color: '#ef4444', border: '1px solid #ef444440',
+                                fontSize: '0.73rem',
+                              }}>
+                              🔴 Mark On-Scene
+                            </button>
+                          )}
+                          {t.availability_status === 'Available' && (
+                            <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>Ready</span>
+                          )}
+                          {t.availability_status === 'Busy' && (
+                            <span style={{ fontSize: '0.73rem', color: '#ef4444' }}>⏳ Working</span>
+                          )}
+                          {t.availability_status === 'Completed' && (
+                            <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>Done</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -163,9 +211,11 @@ export default function TeamsPage() {
             </button>
           </>
         }>
-        <div style={{ padding: '12px', borderRadius: 'var(--radius-md)', background: 'var(--info-subtle)',
-          color: 'var(--info)', fontSize: '0.82rem', marginBottom: 16, display: 'flex', gap: 8 }}>
-          ℹ️ Only Available teams can be assigned. Busy teams will be rejected.
+        <div style={{
+          padding: '12px', borderRadius: 'var(--radius-md)', background: 'var(--info-subtle)',
+          color: 'var(--info)', fontSize: '0.82rem', marginBottom: 16, display: 'flex', gap: 8
+        }}>
+          ℹ️ Only Available teams can be assigned. Assigned/Busy teams will be rejected.
         </div>
         <div className="form-group">
           <label>Select Team *</label>

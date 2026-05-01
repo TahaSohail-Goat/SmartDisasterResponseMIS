@@ -5,26 +5,40 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getBadgeClass, fmt } from '../lib/utils';
 import Modal from '../components/Modal';
+import { motion } from 'framer-motion';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+};
 
 const ROLE_COLORS = {
-  System_Admin:         '#6366f1',
+  System_Admin: '#0ea5e9',
   Disaster_Coordinator: '#f97316',
-  Rescue_Operator:      '#10b981',
-  Warehouse_Manager:    '#3b82f6',
-  Finance_Officer:      '#f59e0b',
-  Citizen:              '#8b5cf6',
+  Rescue_Operator: '#10b981',
+  Warehouse_Manager: '#3b82f6',
+  Finance_Officer: '#f59e0b',
+  Citizen: '#06b6d4',
 };
 
 export default function AdminPage() {
   const { hasRole } = useAuth();
   const toast = useToast();
 
-  const [users, setUsers]       = useState([]);
-  const [roles, setRoles]       = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [search, setSearch]     = useState('');
-  const [roleFilter, setRF]    = useState('');
-  const [activeTab, setTab]     = useState('users');
+  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRF] = useState('');
+  const [activeTab, setTab] = useState('users');
 
   // Create user
   const [showCreate, setShowCreate] = useState(false);
@@ -33,18 +47,18 @@ export default function AdminPage() {
   });
 
   // Edit user
-  const [showEdit, setShowEdit]     = useState(false);
-  const [editUser, setEditUser]     = useState(null);
-  const [editForm, setEditForm]     = useState({
+  const [showEdit, setShowEdit] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+  const [editForm, setEditForm] = useState({
     username: '', email: '', phone: '', role_id: '', is_active: true,
   });
 
   // Reset password
-  const [showReset, setShowReset]   = useState(false);
-  const [resetUserId, setResetId]   = useState(null);
-  const [resetPass, setResetPass]   = useState('');
+  const [showReset, setShowReset] = useState(false);
+  const [resetUserId, setResetId] = useState(null);
+  const [resetPass, setResetPass] = useState('');
 
-  const [submitting, setSub]        = useState(false);
+  const [submitting, setSub] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,8 +81,8 @@ export default function AdminPage() {
     if (search) {
       const s = search.toLowerCase();
       return u.username.toLowerCase().includes(s) ||
-             u.email.toLowerCase().includes(s) ||
-             (u.role_name || '').toLowerCase().includes(s);
+        u.email.toLowerCase().includes(s) ||
+        (u.role_name || '').toLowerCase().includes(s);
     }
     return true;
   });
@@ -142,9 +156,9 @@ export default function AdminPage() {
   }
 
   /* ── Stats ──────────────────────────────────────────────── */
-  const totalUsers  = users.length;
+  const totalUsers = users.length;
   const activeUsers = users.filter(u => u.is_active).length;
-  const roleCounts  = {};
+  const roleCounts = {};
   users.forEach(u => { roleCounts[u.role_name] = (roleCounts[u.role_name] || 0) + 1; });
 
   return (
@@ -160,10 +174,10 @@ export default function AdminPage() {
       {/* ── KPI Strip ──────────────────────────────────────── */}
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
         <div className="stat-card fade-in-up">
-          <div className="stat-icon" style={{ background: '#6366f120' }}>👥</div>
+          <div className="stat-icon" style={{ background: '#0ea5e920' }}>👥</div>
           <div className="stat-info">
             <div className="label">Total Users</div>
-            <div className="value" style={{ color: '#6366f1' }}>{totalUsers}</div>
+            <div className="value" style={{ color: '#0ea5e9' }}>{totalUsers}</div>
           </div>
         </div>
         <div className="stat-card fade-in-up stagger-1">
@@ -190,9 +204,11 @@ export default function AdminPage() {
       </div>
 
       {/* ── Tabs ───────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: 'var(--bg-card)',
-        padding: 4, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-primary)', width: 'fit-content' }}>
-        {[['users','👥 Users'], ['roles','🔐 Roles']].map(([id, label]) => (
+      <div style={{
+        display: 'flex', gap: 4, marginBottom: 16, background: 'var(--bg-card)',
+        padding: 4, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-primary)', width: 'fit-content'
+      }}>
+        {[['users', '👥 Users'], ['roles', '🔐 Roles']].map(([id, label]) => (
           <button key={id} className={activeTab === id ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'}
             onClick={() => setTab(id)}>{label}</button>
         ))}
@@ -228,55 +244,55 @@ export default function AdminPage() {
               : filtered.length === 0
                 ? <div className="empty-state"><div className="icon">👤</div><p>No users found</p></div>
                 : <div className="table-wrapper">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>User</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filtered.map(u => (
-                          <tr key={u.user_id}>
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <div style={{
-                                  width: 32, height: 32, borderRadius: 'var(--radius-md)',
-                                  background: ROLE_COLORS[u.role_name] || '#8b95a8',
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  color: '#fff', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0,
-                                }}>{(u.username || 'U')[0].toUpperCase()}</div>
-                                <div>
-                                  <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{u.username}</div>
-                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ID: {u.user_id}</div>
-                                </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>User</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th>
+                      </tr>
+                    </thead>
+                    <motion.tbody variants={containerVariants} initial="hidden" animate="show">
+                      {filtered.map((u, i) => (
+                        <motion.tr key={u.user_id} variants={itemVariants}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{
+                                width: 32, height: 32, borderRadius: 'var(--radius-md)',
+                                background: ROLE_COLORS[u.role_name] || '#8b95a8',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#fff', fontWeight: 700, fontSize: '0.8rem', flexShrink: 0,
+                              }}>{(u.username || 'U')[0].toUpperCase()}</div>
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{u.username}</div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ID: {u.user_id}</div>
                               </div>
-                            </td>
-                            <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{u.email}</td>
-                            <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{u.phone}</td>
-                            <td>
-                              <span style={{
-                                padding: '3px 10px', borderRadius: 'var(--radius-full)', fontSize: '0.72rem', fontWeight: 600,
-                                background: (ROLE_COLORS[u.role_name] || '#8b95a8') + '20',
-                                color: ROLE_COLORS[u.role_name] || '#8b95a8',
-                              }}>{(u.role_name || '').replace(/_/g, ' ')}</span>
-                            </td>
-                            <td>
-                              <span className={u.is_active ? 'badge badge-available' : 'badge badge-inactive'}>
-                                {u.is_active ? 'Active' : 'Inactive'}
-                              </span>
-                            </td>
-                            <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmt(u.created_at)}</td>
-                            <td>
-                              <div style={{ display: 'flex', gap: 6 }}>
-                                <button className="btn btn-secondary btn-sm" onClick={() => openEdit(u)}>Edit</button>
-                                <button className="btn btn-ghost btn-sm" onClick={() => openReset(u.user_id)} title="Reset Password">🔑</button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{u.email}</td>
+                          <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{u.phone}</td>
+                          <td>
+                            <span style={{
+                              padding: '3px 10px', borderRadius: 'var(--radius-full)', fontSize: '0.72rem', fontWeight: 600,
+                              background: (ROLE_COLORS[u.role_name] || '#8b95a8') + '20',
+                              color: ROLE_COLORS[u.role_name] || '#8b95a8',
+                            }}>{(u.role_name || '').replace(/_/g, ' ')}</span>
+                          </td>
+                          <td>
+                            <span className={u.is_active ? 'badge badge-available' : 'badge badge-inactive'}>
+                              {u.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmt(u.created_at)}</td>
+                          <td>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button className="btn btn-secondary btn-sm" onClick={() => openEdit(u)}>Edit</button>
+                              <button className="btn btn-ghost btn-sm" onClick={() => openReset(u.user_id)} title="Reset Password">🔑</button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </motion.tbody>
+                  </table>
+                </div>
             }
           </div>
         </>
@@ -289,29 +305,29 @@ export default function AdminPage() {
           {loading
             ? <div className="loading-container"><div className="spinner" /></div>
             : <div className="table-wrapper">
-                <table>
-                  <thead><tr><th>ID</th><th>Role</th><th>Description</th><th>Users</th><th>Created</th></tr></thead>
-                  <tbody>
-                    {roles.map(r => (
-                      <tr key={r.role_id}>
-                        <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{r.role_id}</td>
-                        <td>
-                          <span style={{
-                            padding: '4px 12px', borderRadius: 'var(--radius-full)', fontSize: '0.78rem', fontWeight: 600,
-                            background: (ROLE_COLORS[r.role_name] || '#8b95a8') + '20',
-                            color: ROLE_COLORS[r.role_name] || '#8b95a8',
-                          }}>{r.role_name.replace(/_/g, ' ')}</span>
-                        </td>
-                        <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', maxWidth: 320 }}>{r.description}</td>
-                        <td style={{ fontWeight: 700, color: 'var(--accent)' }}>
-                          {roleCounts[r.role_name] || 0}
-                        </td>
-                        <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmt(r.created_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <table>
+                <thead><tr><th>ID</th><th>Role</th><th>Description</th><th>Users</th><th>Created</th></tr></thead>
+                <motion.tbody variants={containerVariants} initial="hidden" animate="show">
+                  {roles.map((r, i) => (
+                    <motion.tr key={r.role_id} variants={itemVariants}>
+                      <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{r.role_id}</td>
+                      <td>
+                        <span style={{
+                          padding: '4px 12px', borderRadius: 'var(--radius-full)', fontSize: '0.78rem', fontWeight: 600,
+                          background: (ROLE_COLORS[r.role_name] || '#8b95a8') + '20',
+                          color: ROLE_COLORS[r.role_name] || '#8b95a8',
+                        }}>{r.role_name.replace(/_/g, ' ')}</span>
+                      </td>
+                      <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', maxWidth: 320 }}>{r.description}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                        {roleCounts[r.role_name] || 0}
+                      </td>
+                      <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmt(r.created_at)}</td>
+                    </motion.tr>
+                  ))}
+                </motion.tbody>
+              </table>
+            </div>
           }
         </div>
       )}
@@ -432,8 +448,10 @@ export default function AdminPage() {
           <input className="form-control" type="password" placeholder="Enter new password (min 6 chars)"
             value={resetPass} onChange={e => setResetPass(e.target.value)} />
         </div>
-        <div style={{ padding: '10px 14px', background: 'var(--warning-subtle)', borderRadius: 'var(--radius-md)',
-          fontSize: '0.8rem', color: '#f59e0b', marginTop: 8 }}>
+        <div style={{
+          padding: '10px 14px', background: 'var(--warning-subtle)', borderRadius: 'var(--radius-md)',
+          fontSize: '0.8rem', color: '#f59e0b', marginTop: 8
+        }}>
           ⚠️ This will immediately change the user's password. They will need to log in again with the new password.
         </div>
       </Modal>

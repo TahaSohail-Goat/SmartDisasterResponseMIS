@@ -7,25 +7,25 @@ import { getBadgeClass, fmt } from '../lib/utils';
 import Modal from '../components/Modal';
 
 const SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
-const STATUSES   = ['Active', 'Pending', 'Completed', 'Inactive'];
-const TYPES      = ['Flood', 'Earthquake', 'Fire', 'Heatwave', 'Landslide', 'Cyclone', 'Drought', 'Other'];
+const STATUSES = ['Active', 'Pending', 'Completed', 'Inactive'];
+const TYPES = ['Flood', 'Earthquake', 'Fire', 'Heatwave', 'Landslide', 'Cyclone', 'Drought', 'Other'];
 
 export default function ReportsPage() {
   const { hasRole } = useAuth();
   const toast = useToast();
 
-  const [reports, setReports]     = useState([]);
-  const [events, setEvents]       = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [search, setSearch]       = useState('');
-  const [filterSev, setFSev]      = useState('');
-  const [filterStat, setFStat]    = useState('');
+  const [reports, setReports] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterSev, setFSev] = useState('');
+  const [filterStat, setFStat] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedReport, setSelected] = useState(null);
   const [newStatus, setNewStatus] = useState('');
-  const [submitting, setSub]      = useState(false);
-  const [form, setForm]           = useState({
+  const [submitting, setSub] = useState(false);
+  const [form, setForm] = useState({
     disaster_event_id: '', location: '', latitude: '', longitude: '',
     disaster_type: '', severity_level: 'High', description: '',
   });
@@ -37,8 +37,8 @@ export default function ReportsPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (filterSev)  params.append('severity', filterSev);
-      if (filterStat) params.append('status',   filterStat);
+      if (filterSev) params.append('severity', filterSev);
+      if (filterStat) params.append('status', filterStat);
       const [rp, ev] = await Promise.all([
         api.get(`/api/reports${params.toString() ? '?' + params : ''}`),
         api.get('/api/events'),
@@ -74,7 +74,7 @@ export default function ReportsPage() {
     try {
       await api.post('/api/reports', {
         ...form,
-        latitude:  parseFloat(form.latitude)  || 0,
+        latitude: parseFloat(form.latitude) || 0,
         longitude: parseFloat(form.longitude) || 0,
         disaster_event_id: parseInt(form.disaster_event_id),
       });
@@ -128,14 +128,16 @@ export default function ReportsPage() {
         <div className="table-header">
           <h3>Reports ({filtered.length})</h3>
           <div style={{ display: 'flex', gap: 8 }}>
-            {['Critical','High','Active'].map(label => {
+            {['Critical', 'High', 'Active'].map(label => {
               const val = label === 'Active'
                 ? reports.filter(r => r.status === 'Active').length
                 : reports.filter(r => r.severity_level === label).length;
               const color = label === 'Critical' ? '#ef4444' : label === 'High' ? '#f97316' : '#3b82f6';
               return (
-                <span key={label} style={{ padding: '4px 10px', borderRadius: 'var(--radius-full)',
-                  background: color + '20', color, fontSize: '0.75rem', fontWeight: 600 }}>
+                <span key={label} style={{
+                  padding: '4px 10px', borderRadius: 'var(--radius-full)',
+                  background: color + '20', color, fontSize: '0.75rem', fontWeight: 600
+                }}>
                   {val} {label}
                 </span>
               );
@@ -175,10 +177,12 @@ export default function ReportsPage() {
                       <td><span className={getBadgeClass(r.severity_level)}>{r.severity_level}</span></td>
                       <td><span className={getBadgeClass(r.status)}>{r.status}</span></td>
                       <td style={{ textAlign: 'center' }}>
-                        <span style={{ padding: '3px 8px', borderRadius: 'var(--radius-full)',
+                        <span style={{
+                          padding: '3px 8px', borderRadius: 'var(--radius-full)',
                           background: r.teams_assigned > 0 ? 'var(--info-subtle)' : 'var(--bg-elevated)',
                           color: r.teams_assigned > 0 ? 'var(--info)' : 'var(--text-muted)',
-                          fontSize: '0.75rem', fontWeight: 600 }}>
+                          fontSize: '0.75rem', fontWeight: 600
+                        }}>
                           {r.teams_assigned}
                         </span>
                       </td>

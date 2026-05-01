@@ -12,7 +12,7 @@ function fmt(dt) {
 }
 
 export default function ApprovalsPage() {
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const toast = useToast();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +60,16 @@ export default function ApprovalsPage() {
       <div className="page-header">
         <h1>✅ Approval Workflow</h1>
         <p>Review and action pending approval requests — resource distribution, deployments, financial approvals</p>
+      </div>
+
+      {/* Separation of duties notice */}
+      <div style={{
+        padding: '10px 16px', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)',
+        border: '1px solid var(--border-primary)', marginBottom: 20, display: 'flex',
+        alignItems: 'center', gap: 10, fontSize: '0.8rem', color: 'var(--text-secondary)',
+      }}>
+        <span style={{ fontSize: '1rem' }}>🔒</span>
+        <span><strong style={{ color: 'var(--text-primary)' }}>Separation of Duties:</strong> You cannot approve or reject your own requests. A different authorized user must review them.</span>
       </div>
 
       {/* Status filter tabs */}
@@ -121,51 +131,68 @@ export default function ApprovalsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {requests.map(r => (
-                      <tr key={r.request_id}>
-                        <td style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>#{r.request_id}</td>
-                        <td style={{ fontWeight: 600, fontSize: '0.85rem' }}>{r.request_type}</td>
-                        <td>{r.requester_name}</td>
-                        <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          {(r.requester_role || '').replace(/_/g, ' ')}
-                        </td>
-                        <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmt(r.request_time)}</td>
-                        <td>
-                          <span style={{
-                            padding: '3px 10px', borderRadius: 'var(--radius-full)',
-                            fontSize: '0.72rem', fontWeight: 700,
-                            background: (STATUS_COLORS[r.status] || '#6366f1') + '20',
-                            color: STATUS_COLORS[r.status] || '#6366f1',
-                          }}>{r.status}</span>
-                        </td>
-                        <td style={{ fontSize: '0.78rem' }}>{r.approver_name || '—'}</td>
-                        <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmt(r.decision_time)}</td>
-                        <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          title={r.notes}>{r.notes || '—'}</td>
-                        {canDecide && filter === 'Pending' && (
+                    {requests.map(r => {
+                      const isOwnRequest = user && r.requested_by === user.user_id;
+                      return (
+                        <tr key={r.request_id} style={isOwnRequest && r.status === 'Pending' ? { background: 'rgba(249, 115, 22, 0.04)' } : {}}>
+                          <td style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>#{r.request_id}</td>
+                          <td style={{ fontWeight: 600, fontSize: '0.85rem' }}>{r.request_type}</td>
                           <td>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                              <button
-                                className="btn btn-primary btn-sm"
-                                disabled={deciding === r.request_id}
-                                onClick={() => decide(r.request_id, 'Approved')}
-                                style={{ background: '#10b981', fontSize: '0.72rem', padding: '4px 10px' }}
-                              >
-                                {deciding === r.request_id ? '…' : '✓ Approve'}
-                              </button>
-                              <button
-                                className="btn btn-secondary btn-sm"
-                                disabled={deciding === r.request_id}
-                                onClick={() => decide(r.request_id, 'Rejected')}
-                                style={{ color: '#ef4444', borderColor: '#ef4444', fontSize: '0.72rem', padding: '4px 10px' }}
-                              >
-                                ✗ Reject
-                              </button>
-                            </div>
+                            {r.requester_name}
+                            {isOwnRequest && (
+                              <span style={{
+                                marginLeft: 6, padding: '1px 6px', borderRadius: 'var(--radius-full)',
+                                background: '#f9731620', color: '#f97316', fontSize: '0.65rem', fontWeight: 700,
+                              }}>YOU</span>
+                            )}
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            {(r.requester_role || '').replace(/_/g, ' ')}
+                          </td>
+                          <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmt(r.request_time)}</td>
+                          <td>
+                            <span style={{
+                              padding: '3px 10px', borderRadius: 'var(--radius-full)',
+                              fontSize: '0.72rem', fontWeight: 700,
+                              background: (STATUS_COLORS[r.status] || '#0ea5e9') + '20',
+                              color: STATUS_COLORS[r.status] || '#0ea5e9',
+                            }}>{r.status}</span>
+                          </td>
+                          <td style={{ fontSize: '0.78rem' }}>{r.approver_name || '—'}</td>
+                          <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{fmt(r.decision_time)}</td>
+                          <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            title={r.notes}>{r.notes || '—'}</td>
+                          {canDecide && filter === 'Pending' && (
+                            <td>
+                              {isOwnRequest ? (
+                                <span style={{
+                                  fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic',
+                                }}>🔒 Own request</span>
+                              ) : (
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <button
+                                    className="btn btn-primary btn-sm"
+                                    disabled={deciding === r.request_id}
+                                    onClick={() => decide(r.request_id, 'Approved')}
+                                    style={{ background: '#10b981', fontSize: '0.72rem', padding: '4px 10px' }}
+                                  >
+                                    {deciding === r.request_id ? '…' : '✓ Approve'}
+                                  </button>
+                                  <button
+                                    className="btn btn-secondary btn-sm"
+                                    disabled={deciding === r.request_id}
+                                    onClick={() => decide(r.request_id, 'Rejected')}
+                                    style={{ color: '#ef4444', borderColor: '#ef4444', fontSize: '0.72rem', padding: '4px 10px' }}
+                                  >
+                                    ✗ Reject
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

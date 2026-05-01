@@ -1,7 +1,14 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function Modal({ isOpen, onClose, title, children, footer }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -15,18 +22,22 @@ export default function Modal({ isOpen, onClose, title, children, footer }) {
     return () => window.removeEventListener('keydown', handleEsc);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>{title}</h2>
-          <button className="btn-ghost btn-icon" onClick={onClose}>✕</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <h2>{title}</h2>
+            <div style={{ width: 40, height: 2, background: 'linear-gradient(90deg, #0ea5e9, #06b6d4)', borderRadius: 2 }} />
+          </div>
+          <button className="btn-ghost btn-icon" onClick={onClose} title="Close">✕</button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

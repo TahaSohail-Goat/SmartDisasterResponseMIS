@@ -4,29 +4,36 @@ import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 import styles from './Sidebar.module.css';
 
-// roles: null = all authenticated users, array = only those roles
+// Strict role-based navigation:
+// System_Admin        → Everything
+// Disaster_Coordinator → Dashboard, Disasters, Reports, Teams, Inventory, Finance, Hospitals, Approvals, Analytics
+// Rescue_Operator      → Dashboard, Reports, Teams, Hospitals, Analytics
+// Warehouse_Manager    → Dashboard, Inventory, Procurement, Approvals, Analytics
+// Finance_Officer      → Dashboard, Finance, Procurement, Approvals, Analytics
+// Citizen              → Dashboard, Reports, Hospitals
+const ALL_STAFF = ['System_Admin', 'Disaster_Coordinator', 'Rescue_Operator', 'Warehouse_Manager', 'Finance_Officer'];
 const NAV_ITEMS = [
-  { href: '/',          label: 'Dashboard',    icon: '📊', roles: null },
-  { href: '/events',    label: 'Disasters',    icon: '🌪️', roles: ['System_Admin','Disaster_Coordinator','Rescue_Operator'] },
-  { href: '/reports',   label: 'Reports',      icon: '🚨', roles: null },   // citizens can submit; staff can update
-  { href: '/teams',     label: 'Rescue Teams', icon: '🚁', roles: ['System_Admin','Disaster_Coordinator','Rescue_Operator'] },
-  { href: '/inventory', label: 'Inventory',    icon: '📦', roles: ['System_Admin','Warehouse_Manager','Disaster_Coordinator'] },
-  { href: '/procurement', label: 'Procurement',  icon: '🛒', roles: ['System_Admin','Warehouse_Manager','Finance_Officer'] },
-  { href: '/finance',   label: 'Finance',      icon: '💰', roles: ['System_Admin','Finance_Officer','Disaster_Coordinator'] },
-  { href: '/hospitals', label: 'Hospitals',    icon: '🏥', roles: null },   // all can view; coordinator can admit
-  { href: '/approvals', label: 'Approvals',    icon: '✅', roles: ['System_Admin','Disaster_Coordinator','Finance_Officer','Warehouse_Manager'] },
-  { href: '/analytics', label: 'Analytics',    icon: '📈', roles: null },
-  { href: '/audit',     label: 'Audit Log',    icon: '🔍', roles: ['System_Admin'] },
-  { href: '/admin',     label: 'Admin',        icon: '👥', roles: ['System_Admin'] },
+  { href: '/',            label: 'Dashboard',    icon: '📊', roles: null }, // all authenticated
+  { href: '/events',      label: 'Disasters',    icon: '🌪️', roles: ['System_Admin', 'Disaster_Coordinator', 'Rescue_Operator'] },
+  { href: '/reports',     label: 'Reports',      icon: '🚨', roles: ['System_Admin', 'Disaster_Coordinator', 'Rescue_Operator', 'Citizen'] },
+  { href: '/teams',       label: 'Rescue Teams', icon: '🚁', roles: ['System_Admin', 'Disaster_Coordinator', 'Rescue_Operator'] },
+  { href: '/inventory',   label: 'Inventory',    icon: '📦', roles: ['System_Admin', 'Warehouse_Manager', 'Disaster_Coordinator'] },
+  { href: '/procurement', label: 'Procurement',  icon: '🛒', roles: ['System_Admin', 'Warehouse_Manager', 'Finance_Officer'] },
+  { href: '/finance',     label: 'Finance',      icon: '💰', roles: ['System_Admin', 'Finance_Officer'] },
+  { href: '/hospitals',   label: 'Hospitals',    icon: '🏥', roles: ['System_Admin', 'Disaster_Coordinator', 'Rescue_Operator', 'Citizen'] },
+  { href: '/approvals',   label: 'Approvals',    icon: '✅', roles: ['System_Admin', 'Disaster_Coordinator', 'Finance_Officer', 'Warehouse_Manager'] },
+  { href: '/analytics',   label: 'Analytics',    icon: '📈', roles: ALL_STAFF },
+  { href: '/audit',       label: 'Audit Log',    icon: '🔍', roles: ['System_Admin'] },
+  { href: '/admin',       label: 'Admin',        icon: '👥', roles: ['System_Admin'] },
 ];
 
 const ROLE_COLORS = {
-  System_Admin:        '#6366f1',
+  System_Admin:        '#0ea5e9',
   Disaster_Coordinator:'#f97316',
   Rescue_Operator:     '#10b981',
   Warehouse_Manager:   '#3b82f6',
   Finance_Officer:     '#f59e0b',
-  Citizen:             '#8b5cf6',
+  Citizen:             '#06b6d4',
 };
 
 // Human-readable descriptions shown below username
@@ -49,7 +56,7 @@ export default function Sidebar() {
     !item.roles || item.roles.some(r => hasRole(r))
   );
 
-  const roleColor = ROLE_COLORS[user.role] || '#6366f1';
+  const roleColor = ROLE_COLORS[user.role] || '#0ea5e9';
   const roleBadge = ROLE_BADGES[user.role]  || user.role;
 
   return (
