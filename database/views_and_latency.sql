@@ -1,29 +1,6 @@
--- ============================================================
---  Smart Disaster Response MIS
---  VIEWS + LATENCY COMPARISON REPORT
---  Target: SQL Server (T-SQL)
---  Run AFTER ddl.sql, dml.sql, triggers.sql
--- ============================================================
---
---  VIEW INDEX
---  ─────────────────────────────────────────────────────────
---  VW-01  vw_Admin_SystemOverview          → admin_ali
---  VW-02  vw_Coordinator_ActiveEvents      → coord_sara
---  VW-03  vw_FieldOfficer_ActiveReports    → rescue_omar
---  VW-04  vw_WarehouseManager_Inventory    → wh_fatima
---  VW-05  vw_FinanceOfficer_Summary        → fin_ahmed
---  VW-06  vw_Hospital_Capacity             → public read-only
---  VW-07  vw_AuditTrail_Recent             → admin_ali only
---
---  LATENCY COMPARISON SECTION
---  ─────────────────────────────────────────────────────────
---  Each query is run twice:
---    A) Via the view     → role-safe, pre-structured, fast
---    B) Via raw tables   → same result, more planning overhead
---  Capture output of SET STATISTICS TIME ON for your report.
--- ============================================================
 
--- ── Drop existing views (safe re-run) ─────────────────────
+--  Run AFTER ddl.sql, dml.sql, triggers.sql
+
 IF OBJECT_ID('vw_Admin_SystemOverview',       'V') IS NOT NULL DROP VIEW vw_Admin_SystemOverview;
 IF OBJECT_ID('vw_Coordinator_ActiveEvents',   'V') IS NOT NULL DROP VIEW vw_Coordinator_ActiveEvents;
 IF OBJECT_ID('vw_FieldOfficer_ActiveReports', 'V') IS NOT NULL DROP VIEW vw_FieldOfficer_ActiveReports;
@@ -33,12 +10,11 @@ IF OBJECT_ID('vw_Hospital_Capacity',          'V') IS NOT NULL DROP VIEW vw_Hosp
 IF OBJECT_ID('vw_AuditTrail_Recent',          'V') IS NOT NULL DROP VIEW vw_AuditTrail_Recent;
 GO
 
--- ============================================================
+
 --  VW-01  Admin — full system snapshot
 --  Role: System_Admin
 --  Hides: password_hash, raw financial amounts per user
 --  Shows: per-event counts, team statuses, overall health
--- ============================================================
 CREATE VIEW vw_Admin_SystemOverview AS
 SELECT
     DE.event_id,
@@ -86,12 +62,11 @@ LEFT JOIN (
 ) FT ON FT.disaster_event_id = DE.event_id;
 GO
 
--- ============================================================
+
 --  VW-02  Coordinator — active events with rescue team status
 --  Role: Disaster_Coordinator
 --  Hides: financial data, patient records, audit logs
 --  Shows: active/pending events, team assignments per event
--- ============================================================
 CREATE VIEW vw_Coordinator_ActiveEvents AS
 SELECT
     DE.event_id,
@@ -133,12 +108,11 @@ LEFT JOIN (
 WHERE  DE.status IN ('Active', 'Pending');
 GO
 
--- ============================================================
+
 --  VW-03  Field Officer — active reports needing action
 --  Role: Rescue_Operator
 --  Hides: financial data, patient medical notes, audit logs
 --  Shows: unassigned and in-progress reports with geo data
--- ============================================================
 CREATE VIEW vw_FieldOfficer_ActiveReports AS
 SELECT
     ER.report_id,
@@ -174,12 +148,10 @@ WHERE  ER.status IN ('Active', 'Pending')
 AND    DE.status  IN ('Active', 'Pending');
 GO
 
--- ============================================================
 --  VW-04  Warehouse Manager — inventory with low-stock alerts
 --  Role: Warehouse_Manager
 --  Hides: financial transactions, emergency reports, audit logs
 --  Shows: stock levels, low-stock flag, pending procurements
--- ============================================================
 CREATE VIEW vw_WarehouseManager_Inventory AS
 SELECT
     W.warehouse_id,
@@ -212,12 +184,12 @@ LEFT JOIN (
        AND PEND.resource_id  = WI.resource_id;
 GO
 
--- ============================================================
+
 --  VW-05  Finance Officer — per-event financial summary
 --  Role: Finance_Officer
 --  Hides: emergency reports, patient records, team assignments
 --  Shows: donations, expenses, procurement totals, net balance
--- ============================================================
+
 CREATE VIEW vw_FinanceOfficer_Summary AS
 SELECT
     DE.event_id,
@@ -258,12 +230,11 @@ LEFT JOIN (
 ) PR ON PR.disaster_event_id = DE.event_id;
 GO
 
--- ============================================================
+
 --  VW-06  Hospital Capacity — load balancing aid
 --  Role: Public read (no sensitive patient data exposed)
 --  Hides: patient names, medical notes, admission details
 --  Shows: bed availability, occupancy rate, admitted counts
--- ============================================================
 CREATE VIEW vw_Hospital_Capacity AS
 SELECT
     H.hospital_id,
@@ -293,12 +264,11 @@ GROUP BY
     H.total_beds, H.available_beds;
 GO
 
--- ============================================================
+
 --  VW-07  Audit Trail — recent 200 entries (Admin only)
 --  Role: System_Admin
 --  Hides: nothing — this is the full audit surface
 --  Shows: who did what, on which table, before/after values
--- ============================================================
 CREATE VIEW vw_AuditTrail_Recent AS
 SELECT TOP 200
     AL.log_id,

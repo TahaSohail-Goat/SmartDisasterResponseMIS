@@ -1,37 +1,8 @@
--- ============================================================
---  Smart Disaster Response MIS
---  INDEXING STRATEGY + QUERY PERFORMANCE REPORT
---  Target: SQL Server (T-SQL)
 --  Run AFTER ddl.sql, dml.sql, triggers.sql, views_and_latency.sql
--- ============================================================
---
---  INDEX CATALOGUE (10 indexes from Design Rationale §17.5)
---  ─────────────────────────────────────────────────────────
---  IDX-01  IX_EmReport_Severity        Emergency_Report(severity_level)
---  IDX-02  IX_EmReport_EventId         Emergency_Report(disaster_event_id)
---  IDX-03  IX_EmReport_ReportTime      Emergency_Report(report_time)
---  IDX-04  IX_Event_Type               Disaster_Event(disaster_type)
---  IDX-05  IX_Event_Status             Disaster_Event(status)
---  IDX-06  IX_Inventory_Resource       Warehouse_Inventory(resource_id)
---  IDX-07  IX_Inventory_Warehouse      Warehouse_Inventory(warehouse_id)
---  IDX-08  IX_FinTxn_Date              Financial_Transaction(transaction_date)
---  IDX-09  IX_FinTxn_Type              Financial_Transaction(transaction_type)
---  IDX-10  IX_EmReport_Event_Sev       Emergency_Report(disaster_event_id, severity_level) COMPOSITE
---
---  BENCHMARK SECTIONS
---  ─────────────────────────────────────────────────────────
---  SCENARIO A  — Filter reports by severity          (IDX-01 benefits)
---  SCENARIO B  — Reports per disaster event          (IDX-02, IDX-10 benefits)
---  SCENARIO C  — Time-range report query             (IDX-03 benefits)
---  SCENARIO D  — Filter events by type               (IDX-04 benefits)
---  SCENARIO E  — Inventory look-up by resource       (IDX-06 benefits)
---  SCENARIO F  — Financial timeline query            (IDX-08 benefits)
---  SCENARIO G  — INSERT overhead demo (trade-off)    (honest overhead analysis)
---  SCENARIO H  — Composite index vs two singles      (IDX-10 vs IDX-01+IDX-02)
--- ============================================================
+
+
 
 -- ── Step 1: Drop all benchmark indexes for a clean slate ──
--- (Indexes were pre-created in ddl.sql; drop here to run WITHOUT phase)
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_EmReport_Severity'   AND object_id = OBJECT_ID('Emergency_Report'))      DROP INDEX IX_EmReport_Severity    ON Emergency_Report;
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_EmReport_EventId'    AND object_id = OBJECT_ID('Emergency_Report'))      DROP INDEX IX_EmReport_EventId     ON Emergency_Report;
 IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_EmReport_ReportTime' AND object_id = OBJECT_ID('Emergency_Report'))      DROP INDEX IX_EmReport_ReportTime  ON Emergency_Report;
@@ -46,15 +17,6 @@ IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_EmReport_Event_Sev'  AND o
 PRINT '=== All benchmark indexes dropped. Running WITHOUT-INDEX phase. ===';
 GO
 
--- ============================================================
---  ██████╗ ██╗  ██╗ █████╗ ███████╗███████╗
---  ██╔══██╗██║  ██║██╔══██╗██╔════╝██╔════╝
---  ██████╔╝███████║███████║███████╗█████╗
---  ██╔═══╝ ██╔══██║██╔══██║╚════██║██╔══╝
---  ██║     ██║  ██║██║  ██║███████║███████╗
---  ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝
---  WITHOUT INDEXES — FULL TABLE SCANS EXPECTED
--- ============================================================
 
 -- ── SCENARIO A: Filter reports by severity — WITHOUT index ──
 PRINT ''; PRINT '=== SCENARIO A (WITHOUT INDEX): Reports by severity = Critical ===';
@@ -152,9 +114,8 @@ SET STATISTICS TIME OFF; SET STATISTICS IO OFF;
 
 GO
 
--- ============================================================
+
 --  CREATE ALL 10 INDEXES
--- ============================================================
 PRINT ''; PRINT '=== Creating all 10 indexes... ===';
 
 -- IDX-01: Single-column — severity filter (dashboard priority queue)
@@ -211,15 +172,7 @@ INCLUDE (report_id, location, report_time, status);
 PRINT '=== All 10 indexes created. Running WITH-INDEX phase. ===';
 GO
 
--- ============================================================
---   ██╗    ██╗██╗████████╗██╗  ██╗
---   ██║    ██║██║╚══██╔══╝██║  ██║
---   ██║ █╗ ██║██║   ██║   ███████║
---   ██║███╗██║██║   ██║   ██╔══██║
---   ╚███╔███╔╝██║   ██║   ██║  ██║
---    ╚══╝╚══╝ ╚═╝   ╚═╝   ╚═╝  ╚═╝
---  WITH INDEXES — SEEKS EXPECTED INSTEAD OF SCANS
--- ============================================================
+
 
 -- ── SCENARIO A: Filter by severity — WITH index ──────────
 PRINT ''; PRINT '=== SCENARIO A (WITH INDEX): Reports by severity = Critical ===';
@@ -313,20 +266,16 @@ WHERE  disaster_event_id = 1
 AND    severity_level    = 'Critical'
 ORDER BY report_time DESC;
 
--- Uses IX_EmReport_Event_Sev (composite) — single seek on both columns
--- Compare: without composite, engine would use IX_EmReport_EventId then
---          filter severity in memory (less efficient on large data sets)
 
 SET STATISTICS TIME OFF; SET STATISTICS IO OFF;
 
 GO
 
--- ============================================================
+
 --  SCENARIO G — INSERT OVERHEAD (honest trade-off analysis)
 --  This is the case where indexing HURTS performance.
 --  The spec explicitly asks for this: §14 "Cases where
 --  indexing may introduce overhead (inserts/updates)"
--- ============================================================
 PRINT ''; PRINT '=== SCENARIO G: INSERT OVERHEAD — indexes make writes slower ===';
 
 -- G1: INSERT without indexes (drop them first to simulate)
@@ -380,28 +329,21 @@ PRINT '    This is the write overhead trade-off. Document both numbers in your r
 
 GO
 
--- ============================================================
---  EXECUTION PLAN HINTS (for SSMS Actual Execution Plan)
---  Press Ctrl+M in SSMS, then run these to see:
---    - "Index Seek" (good — uses index)
---    - "Index Scan" or "Table Scan" (full scan, no index used)
--- ============================================================
 
--- Force index seek (with hint — shows best-case)
+
+
 SELECT report_id, severity_level, report_time
 FROM   Emergency_Report WITH (INDEX = IX_EmReport_Severity)
 WHERE  severity_level = 'Critical';
 
--- Force table scan (with hint — shows worst-case baseline)
 SELECT report_id, severity_level, report_time
-FROM   Emergency_Report WITH (INDEX = 0)   -- 0 = heap/clustered scan
+FROM   Emergency_Report WITH (INDEX = 0)   
 WHERE  severity_level = 'Critical';
 
 GO
 
--- ============================================================
+
 --  FINAL INDEX CATALOGUE — what's installed
--- ============================================================
 SELECT
     I.name                              AS index_name,
     OBJECT_NAME(I.object_id)            AS table_name,

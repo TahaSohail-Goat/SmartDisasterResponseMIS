@@ -1,16 +1,11 @@
--- ============================================================
+
 --  TRANSACTION 2 — Donation Recording
---  Smart Disaster Response MIS
---
 --  Steps (from Design Rationale §17.3):
 --    1. INSERT into Donation
 --    2. INSERT into Financial_Transaction (type='Donation')
 --    3. INSERT into Audit_Log
---    COMMIT or ROLLBACK atomically — a Donation row without
---    a matching Financial_Transaction row is a processing failure.
--- ============================================================
 
--- ── Parameters ──
+
 DECLARE @citizen_id         INT            = 1;        -- Hamza Malik
 DECLARE @disaster_event_id  INT            = 1;        -- Indus Flood 2025
 DECLARE @donor_name         VARCHAR(255)   = 'Hamza Malik';
@@ -20,15 +15,15 @@ DECLARE @payment_method     VARCHAR(100)   = 'Bank Transfer';
 DECLARE @txn_ref            VARCHAR(255)   = 'TRF-2025-0099';
 DECLARE @recorded_by        INT            = 5;        -- fin_ahmed
 
--- ── Internal ──
+-- ── Internal
 DECLARE @new_donation_id    INT;
 
 PRINT '=== TRANSACTION 2: Donation Recording ===';
 PRINT 'Donor: ' + @donor_name + ' | Amount: PKR ' + CAST(@amount AS VARCHAR);
 
--- ══════════════════════════════════════════════════════════
+
 --  HAPPY PATH — valid donation with matching transaction row
--- ══════════════════════════════════════════════════════════
+
 BEGIN TRY
     BEGIN TRANSACTION T2_DonationRecording;
 
@@ -43,7 +38,6 @@ BEGIN TRY
     SET @new_donation_id = SCOPE_IDENTITY();
     PRINT 'Donation inserted — donation_id: ' + CAST(@new_donation_id AS VARCHAR);
 
-    -- Guard: if SCOPE_IDENTITY() returns NULL something went wrong
     IF @new_donation_id IS NULL
         RAISERROR('ERROR: Donation insert failed silently. Rolling back.', 16, 1);
 
@@ -81,9 +75,7 @@ END CATCH;
 
 GO
 
--- ══════════════════════════════════════════════════════════
 --  FAILURE PATH — duplicate transaction reference (UNIQUE violation)
--- ══════════════════════════════════════════════════════════
 PRINT '';
 PRINT '=== TRANSACTION 2 (FAILURE PATH): Duplicate transaction reference ===';
 
@@ -131,9 +123,7 @@ END CATCH;
 
 GO
 
--- ══════════════════════════════════════════════════════════
---  FAILURE PATH — negative amount (CHECK constraint violation)
--- ══════════════════════════════════════════════════════════
+--  FAILURE PATH — negative amount 
 PRINT '';
 PRINT '=== TRANSACTION 2 (FAILURE PATH): Invalid donation amount ===';
 

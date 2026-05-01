@@ -1,7 +1,5 @@
--- ============================================================
+
 --  TRANSACTION 1 — Resource Allocation
---  Smart Disaster Response MIS
---
 --  Steps (from Design Rationale §17.3):
 --    1. Lock inventory row (pessimistic, prevents double-allocation)
 --    2. Validate sufficient stock
@@ -10,10 +8,8 @@
 --    5. UPDATE Warehouse_Inventory (decrement)
 --    6. INSERT Financial_Transaction (Expense record)
 --    7. INSERT Audit_Log
---    COMMIT or ROLLBACK on any failure
--- ============================================================
 
--- ── Parameters (change these to test different scenarios) ──
+
 DECLARE @inventory_id       INT           = 1;     -- Rice sacks, Sindh depot
 DECLARE @report_id          INT           = 1;     -- Sukkur flood report
 DECLARE @requested_by_user  INT           = 3;     -- rescue_omar
@@ -21,7 +17,7 @@ DECLARE @qty_requested      INT           = 100;   -- sacks requested
 DECLARE @disaster_event_id  INT           = 1;     -- Indus Flood 2025
 DECLARE @recorded_by_user   INT           = 5;     -- fin_ahmed
 
--- ── Internal variables ──
+--  Internal variables 
 DECLARE @current_qty        INT;
 DECLARE @new_allocation_id  INT;
 DECLARE @unit_cost_estimate DECIMAL(15,2) = 3500.00;  -- per sack (from procurement)
@@ -32,13 +28,12 @@ SET @total_expense = @qty_requested * @unit_cost_estimate;
 PRINT '=== TRANSACTION 1: Resource Allocation ===';
 PRINT 'Requesting ' + CAST(@qty_requested AS VARCHAR) + ' units from inventory_id ' + CAST(@inventory_id AS VARCHAR);
 
--- ══════════════════════════════════════════════════════════
+
 --  HAPPY PATH — sufficient stock available
--- ══════════════════════════════════════════════════════════
 BEGIN TRY
     BEGIN TRANSACTION T1_ResourceAllocation;
 
-    -- Step 1: Lock the inventory row (UPDLOCK prevents concurrent allocation)
+    -- Step 1: Lock the inventory row
     SELECT @current_qty = quantity
     FROM   Warehouse_Inventory WITH (UPDLOCK, ROWLOCK)
     WHERE  inventory_id = @inventory_id;
@@ -120,9 +115,8 @@ END CATCH;
 
 GO
 
--- ══════════════════════════════════════════════════════════
+
 --  FAILURE PATH — request more than available stock
--- ══════════════════════════════════════════════════════════
 PRINT '';
 PRINT '=== TRANSACTION 1 (FAILURE PATH): Requesting more than available ===';
 

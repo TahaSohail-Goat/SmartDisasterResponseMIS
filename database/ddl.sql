@@ -1,12 +1,6 @@
--- ============================================================
---  Smart Disaster Response MIS
---  DDL  — Data Definition Language
---  Target: SQL Server (T-SQL)
---  Tables: 20  (19 entities + User_Role junction)
---  Run order: top-to-bottom (respects FK dependencies)
--- ============================================================
 
--- Drop tables in reverse FK order (safe re-run)
+--  Smart Disaster Response MIS
+
 IF OBJECT_ID('Audit_Log',            'U') IS NOT NULL DROP TABLE Audit_Log;
 IF OBJECT_ID('Approval_Request',     'U') IS NOT NULL DROP TABLE Approval_Request;
 IF OBJECT_ID('Financial_Transaction','U') IS NOT NULL DROP TABLE Financial_Transaction;
@@ -30,9 +24,6 @@ IF OBJECT_ID('Role',                 'U') IS NOT NULL DROP TABLE Role;
 
 GO
 
--- ============================================================
---  16.1  ACCESS CONTROL
--- ============================================================
 
 CREATE TABLE Role (
     role_id     INT           IDENTITY(1,1) PRIMARY KEY,
@@ -63,19 +54,16 @@ CREATE TABLE User_Role (
     CONSTRAINT FK_UserRole_Role FOREIGN KEY (role_id) REFERENCES Role(role_id)
 );
 
--- ============================================================
---  16.2  CITIZEN & DISASTER MANAGEMENT
--- ============================================================
 
+--  16.2  CITIZEN & DISASTER MANAGEMENT
 CREATE TABLE Citizen (
     citizen_id    INT           IDENTITY(1,1) PRIMARY KEY,
     user_id       INT           NOT NULL,
     full_name     VARCHAR(255)  NOT NULL,
-    cnic          VARCHAR(15)   NOT NULL UNIQUE,   -- FORMAT XXXXX-XXXXXXX-X
+    cnic          VARCHAR(15)   NOT NULL UNIQUE,
     address       VARCHAR(255)  NOT NULL,
     date_of_birth DATE          NOT NULL,
     gender        VARCHAR(10)   NOT NULL CHECK (gender IN ('Male','Female','Other')),
-    -- age is derived: DATEDIFF(year, date_of_birth, GETDATE())
     CONSTRAINT FK_Citizen_User FOREIGN KEY (user_id) REFERENCES [User](user_id)
 );
 
@@ -89,9 +77,6 @@ CREATE TABLE Disaster_Event (
     end_date       DATETIME      NULL,              -- NULL while event is ongoing
     status         VARCHAR(20)   NOT NULL CHECK (status IN ('Active','Inactive','Pending','Completed')),
     description    TEXT          NOT NULL
-    -- duration        derived: DATEDIFF(day, start_date, end_date)
-    -- total_reports   derived: COUNT(Emergency_Report.disaster_event_id)
-    -- total_budget    derived: SUM(Financial_Transaction.amount) WHERE event_id
 );
 
 CREATE TABLE Emergency_Report (
@@ -106,24 +91,20 @@ CREATE TABLE Emergency_Report (
     report_time       DATETIME      NOT NULL DEFAULT GETDATE(),
     status            VARCHAR(20)   NOT NULL CHECK (status IN ('Active','Inactive','Pending','Completed')),
     description       TEXT          NOT NULL,
-    -- response_time derived: Team_Assignment.assigned_at - report_time
     CONSTRAINT FK_EmReport_Citizen      FOREIGN KEY (citizen_id)        REFERENCES Citizen(citizen_id),
     CONSTRAINT FK_EmReport_Disaster     FOREIGN KEY (disaster_event_id) REFERENCES Disaster_Event(event_id)
 );
-
--- ============================================================
 --  16.3  RESCUE OPERATIONS
--- ============================================================
 
 CREATE TABLE Rescue_Team (
     team_id             INT           IDENTITY(1,1) PRIMARY KEY,
     team_name           VARCHAR(255)  NOT NULL,
-    team_type           VARCHAR(100)  NOT NULL,   -- 'Medical' | 'Fire' | 'Rescue'
+    team_type           VARCHAR(100)  NOT NULL,   
     current_location    VARCHAR(255)  NOT NULL,
     availability_status VARCHAR(50)   NOT NULL CHECK (availability_status IN ('Available','Assigned','Busy','Completed')),
     team_size           INT           NOT NULL CHECK (team_size > 0),
     contact_number      VARCHAR(20)   NOT NULL
-    -- total_missions derived: COUNT(Team_Assignment) for this team
+  
 );
 
 CREATE TABLE Team_Assignment (
@@ -134,19 +115,16 @@ CREATE TABLE Team_Assignment (
     completed_at    DATETIME     NULL,
     status          VARCHAR(20)  NOT NULL CHECK (status IN ('Active','Inactive','Pending','Completed')),
     notes           TEXT         NULL,
-    -- duration derived: DATEDIFF(hour, assigned_at, completed_at)
     CONSTRAINT FK_TeamAssign_Team   FOREIGN KEY (rescue_team_id) REFERENCES Rescue_Team(team_id),
     CONSTRAINT FK_TeamAssign_Report FOREIGN KEY (report_id)      REFERENCES Emergency_Report(report_id)
 );
 
--- ============================================================
 --  16.4  RESOURCE MANAGEMENT
--- ============================================================
 
 CREATE TABLE Resource (
     resource_id     INT           IDENTITY(1,1) PRIMARY KEY,
     resource_name   VARCHAR(255)  NOT NULL,
-    resource_type   VARCHAR(100)  NOT NULL,    -- 'Food' | 'Water' | 'Medicine' | 'Shelter'
+    resource_type   VARCHAR(100)  NOT NULL,   
     unit_of_measure VARCHAR(50)   NOT NULL,
     description     TEXT          NOT NULL
 );
@@ -158,7 +136,6 @@ CREATE TABLE Warehouse (
     capacity        INT           NOT NULL CHECK (capacity > 0),
     contact_number  VARCHAR(20)   NOT NULL,
     manager_id      INT           NOT NULL,
-    -- total_inventory_value derived: SUM(quantity * unit_cost) via Warehouse_Inventory
     CONSTRAINT FK_Warehouse_Manager FOREIGN KEY (manager_id) REFERENCES [User](user_id)
 );
 
@@ -169,7 +146,6 @@ CREATE TABLE Warehouse_Inventory (
     quantity         INT          NOT NULL CHECK (quantity >= 0),
     threshold_level  INT          NOT NULL CHECK (threshold_level >= 0),
     last_updated     DATETIME     NOT NULL DEFAULT GETDATE(),
-    -- is_low_stock derived: CASE WHEN quantity < threshold_level THEN 1 ELSE 0 END
     CONSTRAINT FK_Inventory_Warehouse FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id),
     CONSTRAINT FK_Inventory_Resource  FOREIGN KEY (resource_id)  REFERENCES Resource(resource_id),
     CONSTRAINT UQ_Inventory_Slot UNIQUE (warehouse_id, resource_id)   -- one row per resource per warehouse
@@ -179,21 +155,18 @@ CREATE TABLE Resource_Allocation (
     allocation_id      INT          IDENTITY(1,1) PRIMARY KEY,
     inventory_id       INT          NOT NULL,
     report_id          INT          NOT NULL,
-    requested_by       INT          NOT NULL,     -- FK to User
+    requested_by       INT          NOT NULL,     
     allocated_quantity INT          NOT NULL CHECK (allocated_quantity >= 0),
     dispatched_quantity INT         NOT NULL DEFAULT 0,
     consumed_quantity   INT         NOT NULL DEFAULT 0,
     allocation_date    DATETIME     NOT NULL DEFAULT GETDATE(),
     status             VARCHAR(20)  NOT NULL CHECK (status IN ('Active','Inactive','Pending','Completed')),
-    -- remaining_quantity derived: allocated_quantity - consumed_quantity
     CONSTRAINT FK_Alloc_Inventory  FOREIGN KEY (inventory_id)  REFERENCES Warehouse_Inventory(inventory_id),
     CONSTRAINT FK_Alloc_Report     FOREIGN KEY (report_id)     REFERENCES Emergency_Report(report_id),
     CONSTRAINT FK_Alloc_User       FOREIGN KEY (requested_by)  REFERENCES [User](user_id)
 );
 
--- ============================================================
 --  16.5  MEDICAL MANAGEMENT
--- ============================================================
 
 CREATE TABLE Hospital (
     hospital_id     INT           IDENTITY(1,1) PRIMARY KEY,
@@ -203,7 +176,6 @@ CREATE TABLE Hospital (
     total_beds      INT           NOT NULL CHECK (total_beds > 0),
     available_beds  INT           NOT NULL CHECK (available_beds >= 0),
     specialization  VARCHAR(255)  NOT NULL,
-    -- occupancy_rate derived: (total_beds - available_beds) * 100.0 / total_beds
     CONSTRAINT CHK_Hospital_Beds CHECK (available_beds <= total_beds)
 );
 
@@ -218,25 +190,22 @@ CREATE TABLE Patient (
     discharge_time  DATETIME      NULL,
     status          VARCHAR(20)   NOT NULL CHECK (status IN ('Active','Admitted','Discharged','Critical','Deceased')),
     medical_notes   TEXT          NULL,
-    -- length_of_stay derived: DATEDIFF(hour, admission_time, discharge_time)
     CONSTRAINT FK_Patient_Report   FOREIGN KEY (report_id)   REFERENCES Emergency_Report(report_id),
     CONSTRAINT FK_Patient_Hospital FOREIGN KEY (hospital_id) REFERENCES Hospital(hospital_id)
 );
 
--- ============================================================
 --  16.6  FINANCIAL MANAGEMENT
--- ============================================================
 
 CREATE TABLE Donation (
     donation_id           INT            IDENTITY(1,1) PRIMARY KEY,
     citizen_id            INT            NOT NULL,
     disaster_event_id     INT            NOT NULL,
     donor_name            VARCHAR(255)   NOT NULL,
-    donor_type            VARCHAR(50)    NOT NULL,   -- 'Individual' | 'Organization' | 'Government'
+    donor_type            VARCHAR(50)    NOT NULL,  
     amount                DECIMAL(15,2)  NOT NULL CHECK (amount > 0),
     donation_date         DATETIME       NOT NULL DEFAULT GETDATE(),
     payment_method        VARCHAR(100)   NOT NULL,
-    transaction_reference VARCHAR(255)   NOT NULL UNIQUE,  -- each payment must have a unique reference
+    transaction_reference VARCHAR(255)   NOT NULL UNIQUE, 
     CONSTRAINT FK_Donation_Citizen  FOREIGN KEY (citizen_id)        REFERENCES Citizen(citizen_id),
     CONSTRAINT FK_Donation_Event    FOREIGN KEY (disaster_event_id) REFERENCES Disaster_Event(event_id)
 );
@@ -265,7 +234,6 @@ CREATE TABLE Procurement (
     supplier_name    VARCHAR(255)   NOT NULL,
     approved_by      INT            NOT NULL,
     status           VARCHAR(20)    NOT NULL CHECK (status IN ('Active','Inactive','Pending','Completed')),
-    -- total_cost derived: quantity * unit_cost
     CONSTRAINT FK_Procurement_Resource  FOREIGN KEY (resource_id)  REFERENCES Resource(resource_id),
     CONSTRAINT FK_Procurement_Warehouse FOREIGN KEY (warehouse_id) REFERENCES Warehouse(warehouse_id),
     CONSTRAINT FK_Procurement_Event     FOREIGN KEY (disaster_event_id) REFERENCES Disaster_Event(event_id),
@@ -275,26 +243,24 @@ CREATE TABLE Procurement (
 CREATE TABLE Financial_Transaction (
     transaction_id   INT            IDENTITY(1,1) PRIMARY KEY,
     transaction_type VARCHAR(50)    NOT NULL CHECK (transaction_type IN ('Donation','Expense','Procurement')),
-    reference_id     INT            NOT NULL,      -- FK to Donation/Expense/Procurement depending on type
+    reference_id     INT            NOT NULL,     
     disaster_event_id INT           NOT NULL,
     amount           DECIMAL(15,2)  NOT NULL CHECK (amount > 0),
     transaction_date DATETIME       NOT NULL DEFAULT GETDATE(),
     recorded_by      INT            NOT NULL,
     notes            TEXT           NULL,
-    -- running_balance derived: cumulative SUM via window function
     CONSTRAINT FK_FinTxn_Event FOREIGN KEY (disaster_event_id) REFERENCES Disaster_Event(event_id),
     CONSTRAINT FK_FinTxn_User  FOREIGN KEY (recorded_by)       REFERENCES [User](user_id)
 );
 
--- ============================================================
 --  16.7  WORKFLOW & AUDIT
--- ============================================================
+
 
 CREATE TABLE Approval_Request (
     request_id    INT           IDENTITY(1,1) PRIMARY KEY,
     request_type  VARCHAR(100)  NOT NULL,
     requested_by  INT           NOT NULL,
-    approved_by   INT           NULL,              -- NULL until resolved
+    approved_by   INT           NULL,              
     allocation_id INT           NULL,
     procurement_id INT          NULL,
     assignment_id INT           NULL,
@@ -302,7 +268,6 @@ CREATE TABLE Approval_Request (
     request_date  DATETIME      NOT NULL DEFAULT GETDATE(),
     resolved_date DATETIME      NULL,
     remarks       TEXT          NULL,
-    -- processing_time derived: DATEDIFF(hour, request_date, resolved_date)
     CONSTRAINT FK_ApprReq_Requester  FOREIGN KEY (requested_by)  REFERENCES [User](user_id),
     CONSTRAINT FK_ApprReq_Approver   FOREIGN KEY (approved_by)   REFERENCES [User](user_id),
     CONSTRAINT FK_ApprReq_Allocation FOREIGN KEY (allocation_id) REFERENCES Resource_Allocation(allocation_id),
@@ -318,11 +283,11 @@ CREATE TABLE Approval_Request (
 CREATE TABLE Audit_Log (
     log_id     INT           IDENTITY(1,1) PRIMARY KEY,
     user_id    INT           NOT NULL,
-    action     VARCHAR(50)   NOT NULL,       -- 'INSERT' | 'UPDATE' | 'DELETE'
+    action     VARCHAR(50)   NOT NULL,       
     table_name VARCHAR(100)  NOT NULL,
     record_id  INT           NOT NULL,
-    old_value  NVARCHAR(MAX) NULL,           -- JSON or plain text snapshot of before state
-    new_value  NVARCHAR(MAX) NULL,           -- JSON or plain text snapshot of after state
+    old_value  NVARCHAR(MAX) NULL,        
+    new_value  NVARCHAR(MAX) NULL,          
     ip_address VARCHAR(50)   NULL,
     [timestamp] DATETIME     NOT NULL DEFAULT GETDATE(),
     CONSTRAINT FK_AuditLog_User FOREIGN KEY (user_id) REFERENCES [User](user_id)
@@ -330,11 +295,8 @@ CREATE TABLE Audit_Log (
 
 GO
 
--- ============================================================
 --  Indexes (non-clustered, for Step 8 performance analysis)
---  Created here so DML inserts already benefit from them.
 --  See indexing report for WITH/WITHOUT benchmarks.
--- ============================================================
 
 -- Emergency_Report
 CREATE INDEX IX_EmReport_Severity   ON Emergency_Report (severity_level);

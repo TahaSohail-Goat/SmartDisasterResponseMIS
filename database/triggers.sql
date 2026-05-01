@@ -1,43 +1,7 @@
--- ============================================================
---  Smart Disaster Response MIS
---  TRIGGERS — All 8 triggers in run order
---  Target: SQL Server (T-SQL)
---  Run AFTER ddl.sql and dml.sql
--- ============================================================
---
---  TRIGGER INDEX
---  ─────────────────────────────────────────────────────────
---  TRG-01  trg_TeamAssignment_SetTeamAssigned
---          AFTER INSERT on Team_Assignment
---          → sets Rescue_Team.availability_status = 'Assigned'
---
---  TRG-02  trg_TeamAssignment_FreeTeam
---          AFTER UPDATE on Team_Assignment (status → Completed)
---          → sets Rescue_Team.availability_status = 'Available'
---
---  TRG-03  trg_ResourceAllocation_DecrementInventory
---          AFTER UPDATE on Resource_Allocation (dispatched_quantity changes)
---          → decrements Warehouse_Inventory.quantity
---
---  TRG-04  trg_Inventory_PreventNegative
---          INSTEAD OF UPDATE on Warehouse_Inventory
---          → blocks any update that would make quantity < 0
---
---  TRG-05  trg_Procurement_IncrementInventory
---          AFTER UPDATE on Procurement (status → Completed)
---          → upserts Warehouse_Inventory quantity
---
---  TRG-06  trg_Audit_EmergencyReport
---          AFTER INSERT, UPDATE, DELETE on Emergency_Report → Audit_Log
---
---  TRG-07  trg_Audit_ResourceAllocation
---          AFTER INSERT, UPDATE, DELETE on Resource_Allocation → Audit_Log
---
---  TRG-08  trg_Audit_FinancialTransaction
---          AFTER INSERT, UPDATE, DELETE on Financial_Transaction → Audit_Log
--- ============================================================
 
--- ── Drop existing triggers (safe re-run) ─────────────────
+--  Run AFTER ddl.sql and dml.sql
+
+
 IF OBJECT_ID('trg_TeamAssignment_SetTeamBusy',            'TR') IS NOT NULL DROP TRIGGER trg_TeamAssignment_SetTeamBusy;
 IF OBJECT_ID('trg_TeamAssignment_SetTeamAssigned',         'TR') IS NOT NULL DROP TRIGGER trg_TeamAssignment_SetTeamAssigned;
 IF OBJECT_ID('trg_TeamAssignment_FreeTeam',               'TR') IS NOT NULL DROP TRIGGER trg_TeamAssignment_FreeTeam;
@@ -60,15 +24,13 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- A single INSERT may assign multiple teams at once (batch-safe)
-    -- Set to 'Assigned' (dispatched but not yet on-scene)
+   
     UPDATE RT
     SET    RT.availability_status = 'Assigned'
     FROM   Rescue_Team RT
     INNER JOIN inserted i ON i.rescue_team_id = RT.team_id
     WHERE  i.status = 'Active'
-    AND    RT.availability_status = 'Available';   -- only transition from Available
-
+    AND    RT.availability_status = 'Available';   
     -- Audit each assignment
     INSERT INTO Audit_Log (user_id, action, table_name, record_id, old_value, new_value, ip_address)
     SELECT
@@ -84,7 +46,7 @@ BEGIN
 END;
 GO
 
--- ── Test TRG-01 ──────────────────────────────────────────
+-- ── Test TRG-01 
 PRINT '--- TRG-01 test: assign Charlie team (team_id=3) to report_id=10 ---';
 
 SELECT team_id, team_name, availability_status
@@ -142,7 +104,7 @@ BEGIN
 END;
 GO
 
--- ── Test TRG-02 ──────────────────────────────────────────
+-- ── Test TRG-02 
 PRINT '--- TRG-02 test: complete the assignment just created ---';
 
 DECLARE @test_assignment_id INT = (SELECT MAX(assignment_id) FROM Team_Assignment WHERE rescue_team_id = 3);
@@ -195,7 +157,7 @@ BEGIN
 END;
 GO
 
--- ── Test TRG-03 ──────────────────────────────────────────
+-- ── Test TRG-03 
 PRINT '--- TRG-03 test: dispatch 50 units from allocation_id=1 ---';
 
 SELECT WI.inventory_id, WI.quantity AS qty_before
@@ -252,7 +214,7 @@ BEGIN
 END;
 GO
 
--- ── Test TRG-04 (happy path) ─────────────────────────────
+-- ── Test TRG-04 (happy path) 
 PRINT '--- TRG-04 test (valid): update inventory_id=1 to 9999 ---';
 
 UPDATE Warehouse_Inventory SET quantity = 9999 WHERE inventory_id = 1;
@@ -261,7 +223,7 @@ SELECT inventory_id, quantity FROM Warehouse_Inventory WHERE inventory_id = 1;
 
 GO
 
--- ── Test TRG-04 (blocked) ────────────────────────────────
+-- ── Test TRG-04 (blocked) 
 PRINT '--- TRG-04 test (blocked): attempt to set quantity = -1 ---';
 
 BEGIN TRY
@@ -276,7 +238,7 @@ SELECT inventory_id, quantity FROM Warehouse_Inventory WHERE inventory_id = 1;  
 GO
 
 -- ============================================================
---  TRG-05  Procurement approved → increment warehouse inventory
+--  TRG-05  Procurement approved to increment warehouse inventory
 -- ============================================================
 CREATE TRIGGER trg_Procurement_IncrementInventory
 ON Procurement
@@ -285,7 +247,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Only fire on Pending → Completed transitions
+    -- Only fire on Pending to Completed transitions
     IF NOT EXISTS (
         SELECT 1 FROM inserted i
         INNER JOIN deleted d ON d.procurement_id = i.procurement_id
@@ -333,7 +295,7 @@ BEGIN
 END;
 GO
 
--- ── Test TRG-05 ──────────────────────────────────────────
+-- ── Test TRG-05 
 PRINT '--- TRG-05 test: approve procurement_id=7 (2000 MRE packs) ---';
 
 SELECT WI.inventory_id, WI.quantity AS qty_before
@@ -400,7 +362,7 @@ BEGIN
 END;
 GO
 
--- ── Test TRG-06 ──────────────────────────────────────────
+-- ── Test TRG-06 
 PRINT '--- TRG-06 test: update report_id=10 status to Completed ---';
 
 UPDATE Emergency_Report SET status = 'Completed' WHERE report_id = 10;
@@ -450,7 +412,7 @@ BEGIN
 END;
 GO
 
--- ── Test TRG-07 ──────────────────────────────────────────
+-- ── Test TRG-07 
 PRINT '--- TRG-07 test: complete allocation_id=5 ---';
 
 UPDATE Resource_Allocation SET status = 'Completed' WHERE allocation_id = 5;
@@ -498,7 +460,7 @@ BEGIN
 END;
 GO
 
--- ── Test TRG-08 ──────────────────────────────────────────
+-- ── Test TRG-08 
 PRINT '--- TRG-08 test: insert a new Financial_Transaction ---';
 
 INSERT INTO Financial_Transaction

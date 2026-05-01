@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { href: '/events',      label: 'Disasters',    icon: '🌪️', roles: ['System_Admin', 'Disaster_Coordinator', 'Rescue_Operator'] },
   { href: '/reports',     label: 'Reports',      icon: '🚨', roles: ['System_Admin', 'Disaster_Coordinator', 'Rescue_Operator', 'Citizen'] },
   { href: '/teams',       label: 'Rescue Teams', icon: '🚁', roles: ['System_Admin', 'Disaster_Coordinator', 'Rescue_Operator'] },
-  { href: '/inventory',   label: 'Inventory',    icon: '📦', roles: ['System_Admin', 'Warehouse_Manager', 'Disaster_Coordinator'] },
+  { href: '/inventory',   label: 'Inventory',    icon: '📦', roles: ['System_Admin', 'Warehouse_Manager', 'Disaster_Coordinator', 'Rescue_Operator'] },
   { href: '/procurement', label: 'Procurement',  icon: '🛒', roles: ['System_Admin', 'Warehouse_Manager', 'Finance_Officer'] },
   { href: '/finance',     label: 'Finance',      icon: '💰', roles: ['System_Admin', 'Finance_Officer'] },
   { href: '/hospitals',   label: 'Hospitals',    icon: '🏥', roles: ['System_Admin', 'Disaster_Coordinator', 'Rescue_Operator', 'Citizen'] },

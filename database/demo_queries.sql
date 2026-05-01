@@ -142,3 +142,6 @@ SELECT TOP 10
 FROM Audit_Log 
 ORDER BY [timestamp] DESC;
 GO
+
+
+SELECt  * From Citizen;

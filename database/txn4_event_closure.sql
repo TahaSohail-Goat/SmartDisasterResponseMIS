@@ -1,8 +1,5 @@
--- ============================================================
+
 --  TRANSACTION 4 — Disaster Event Closure
---  Smart Disaster Response MIS
---
---  Steps (from Design Rationale §17.3):
 --    1. Validate event exists and is Active (cannot close what's closed)
 --    2. UPDATE Disaster_Event → status='Completed', end_date=NOW()
 --    3. UPDATE all active Team_Assignment rows for this event → 'Completed'
@@ -10,14 +7,12 @@
 --    5. UPDATE open Resource_Allocation rows for this event → 'Completed'
 --    6. UPDATE open Approval_Request rows tied to this event → 'Rejected' (lapse)
 --    7. INSERT Audit_Log (closure record)
---    COMMIT or ROLLBACK — all steps succeed together or none do.
--- ============================================================
 
--- ── Parameters ──
+
 DECLARE @event_id_to_close  INT  = 6;        -- Islamabad Landslide (status='Active' — safe to close)
 DECLARE @closed_by_user     INT  = 2;        -- coord_sara
 
--- ── Internal ──
+
 DECLARE @current_status     VARCHAR(20);
 DECLARE @event_name         VARCHAR(255);
 DECLARE @teams_freed        INT  = 0;
@@ -28,9 +23,8 @@ DECLARE @requests_lapsed    INT  = 0;
 PRINT '=== TRANSACTION 4: Disaster Event Closure ===';
 PRINT 'Closing event_id: ' + CAST(@event_id_to_close AS VARCHAR);
 
--- ══════════════════════════════════════════════════════════
+
 --  HAPPY PATH — close an active event  
--- ══════════════════════════════════════════════════════════
 BEGIN TRY
     BEGIN TRANSACTION T4_EventClosure;
 
@@ -151,9 +145,7 @@ END CATCH;
 
 GO
 
--- ══════════════════════════════════════════════════════════
 --  FAILURE PATH — attempt to close an already-closed event
--- ══════════════════════════════════════════════════════════
 PRINT '';
 PRINT '=== TRANSACTION 4 (FAILURE PATH): Close already-completed event ===';
 
@@ -194,9 +186,7 @@ END CATCH;
 
 GO
 
--- ══════════════════════════════════════════════════════════
 --  FAILURE PATH — invalid event_id
--- ══════════════════════════════════════════════════════════
 PRINT '';
 PRINT '=== TRANSACTION 4 (FAILURE PATH): Non-existent event_id ===';
 

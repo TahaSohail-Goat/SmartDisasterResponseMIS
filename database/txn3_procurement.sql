@@ -1,8 +1,5 @@
--- ============================================================
+
 --  TRANSACTION 3 — Procurement
---  Smart Disaster Response MIS
---
---  Steps (from Design Rationale §17.3):
 --    1. INSERT Procurement (status='Pending')
 --    2. INSERT Approval_Request linked by procurement_id
 --    On approval signal:
@@ -10,12 +7,9 @@
 --    4. UPDATE+INSERT Warehouse_Inventory (upsert — handles first-time stocking)
 --    5. INSERT Financial_Transaction (type='Procurement')
 --    6. INSERT Audit_Log
---
---  The two phases (create + approve) are separate transactions,
---  each independently atomic.
--- ============================================================
 
--- ── Parameters ──
+
+
 DECLARE @resource_id        INT            = 6;        -- Blankets
 DECLARE @warehouse_id       INT            = 3;        -- KPK Emergency Warehouse
 DECLARE @quantity           INT            = 500;
@@ -33,9 +27,8 @@ DECLARE @total_cost         DECIMAL(15,2)  = @quantity * @unit_cost;
 PRINT '=== TRANSACTION 3: Procurement — Phase 1 (Create & Request Approval) ===';
 PRINT 'Item: resource_id=' + CAST(@resource_id AS VARCHAR) + ' | Qty: ' + CAST(@quantity AS VARCHAR) + ' | Total: PKR ' + CAST(@total_cost AS VARCHAR);
 
--- ══════════════════════════════════════════════════════════
+
 --  PHASE 1 — Create procurement record and approval request
--- ══════════════════════════════════════════════════════════
 BEGIN TRY
     BEGIN TRANSACTION T3_ProcurementCreate;
 
@@ -78,13 +71,10 @@ END CATCH;
 
 GO
 
--- ══════════════════════════════════════════════════════════
 --  PHASE 2 — Approve: update status, upsert inventory, log
--- ══════════════════════════════════════════════════════════
 PRINT '';
 PRINT '=== TRANSACTION 3: Procurement — Phase 2 (Approval & Inventory Update) ===';
 
--- Re-declare for Phase 2 (GO resets scope)
 DECLARE @proc_id_p2         INT            = (SELECT MAX(procurement_id) FROM Procurement);
 DECLARE @res_id_p2          INT;
 DECLARE @wh_id_p2           INT;
@@ -169,9 +159,8 @@ END CATCH;
 
 GO
 
--- ══════════════════════════════════════════════════════════
---  FAILURE PATH — zero quantity (CHECK constraint violation)
--- ══════════════════════════════════════════════════════════
+
+--  FAILURE PATH — zero quantity
 PRINT '';
 PRINT '=== TRANSACTION 3 (FAILURE PATH): Zero quantity procurement ===';
 

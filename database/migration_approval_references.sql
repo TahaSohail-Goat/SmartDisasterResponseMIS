@@ -1,9 +1,7 @@
--- ============================================================
+
 --  Migration: Approval_Request references for allocations,
 --  procurements, and rescue deployments.
 --  Run this only on an existing database created before the
---  approval-reference redesign. Fresh databases use ddl.sql.
--- ============================================================
 
 IF COL_LENGTH('Procurement', 'disaster_event_id') IS NULL
 BEGIN
