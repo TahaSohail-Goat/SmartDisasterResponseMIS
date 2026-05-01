@@ -373,38 +373,3 @@ ORDER BY OBJECT_NAME(I.object_id), I.name;
 
 GO
 
--- ============================================================
---  PERFORMANCE REPORT TABLE TEMPLATE
---  Fill from SSMS Messages tab. Put this in your
---  Design Rationale document Section 19.
--- ============================================================
-/*
-┌─────┬─────────────────────────────────────────┬─────────────────────────┬──────────────────────┬──────────────────────┬─────────────┬─────────────────────────────────┐
-│ ID  │ Scenario                                │ Index(es) Used          │ Without Index (ms)   │ With Index (ms)      │ Improvement │ Scan vs Seek                    │
-├─────┼─────────────────────────────────────────┼─────────────────────────┼──────────────────────┼──────────────────────┼─────────────┼─────────────────────────────────┤
-│  A  │ Reports by severity = Critical          │ IX_EmReport_Severity    │  ___                 │  ___                 │  ___%       │ Table Scan → Index Seek         │
-│  B  │ Reports for event_id = 1               │ IX_EmReport_EventId     │  ___                 │  ___                 │  ___%       │ Table Scan → Index Seek         │
-│  C  │ Reports in date range (Aug 2025)        │ IX_EmReport_ReportTime  │  ___                 │  ___                 │  ___%       │ Table Scan → Index Range Seek   │
-│  D  │ Disaster events of type Flood           │ IX_Event_Type           │  ___                 │  ___                 │  ___%       │ Table Scan → Index Seek         │
-│  E  │ Inventory for resource_id=1 (Rice)      │ IX_Inventory_Resource   │  ___                 │  ___                 │  ___%       │ Table Scan → Index Seek         │
-│  F  │ Financial transactions in Aug 2025      │ IX_FinTxn_Date          │  ___                 │  ___                 │  ___%       │ Table Scan → Index Range Seek   │
-│  G  │ INSERT 5 rows — overhead demo           │ 4 indexes maintained    │  ___ (baseline)      │  ___ (with indexes)  │  -___%      │ N/A (write overhead)            │
-│  H  │ Critical reports for event_id=1         │ IX_EmReport_Event_Sev   │  ___                 │  ___                 │  ___%       │ 2 seeks → 1 composite seek      │
-└─────┴─────────────────────────────────────────┴─────────────────────────┴──────────────────────┴──────────────────────┴─────────────┴─────────────────────────────────┘
-
-Key observations to write in your rationale:
-  1. Scenarios A–F: Index Seeks reduce logical reads from N (full scan) to just the
-     matching rows. On production-scale data (millions of rows), this is the difference
-     between 2000ms and 5ms response times.
-  2. Scenario G: Each index on Emergency_Report adds ~1 B-tree page update per INSERT.
-     With 4 indexes, a single INSERT touches 5 data structures (heap + 4 trees).
-     This is the write-amplification trade-off — acceptable here because Emergency_Report
-     is read-heavy (dashboards, maps) vs write-occasional (citizen reports).
-  3. Scenario H: The composite index IX_EmReport_Event_Sev satisfies both filter
-     columns in a single B-tree traversal. Two single-column indexes would require
-     a key lookup or bookmark lookup to resolve the second filter — measurably slower
-     on large tables.
-  4. The INCLUDE columns on each index mean the SELECT columns are covered —
-     no bookmark lookup back to the base table is needed for the listed queries.
-     This is called a "covering index" and is why IO drops dramatically.
-*/
