@@ -7,7 +7,7 @@ import styles from './Sidebar.module.css';
 // Strict role-based navigation:
 // System_Admin        → Everything
 // Disaster_Coordinator → Dashboard, Disasters, Reports, Teams, Inventory, Finance, Hospitals, Approvals, Analytics
-// Rescue_Operator      → Dashboard, Reports, Teams, Hospitals, Analytics
+// Rescue_Operator      → Dashboard, Reports, Teams, Inventory, Hospitals, Analytics
 // Warehouse_Manager    → Dashboard, Inventory, Procurement, Approvals, Analytics
 // Finance_Officer      → Dashboard, Finance, Procurement, Approvals, Analytics
 // Citizen              → Dashboard, Reports, Hospitals
