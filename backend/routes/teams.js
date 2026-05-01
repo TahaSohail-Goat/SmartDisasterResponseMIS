@@ -116,6 +116,40 @@ router.post('/deployment-requests', authorize('System_Admin', 'Disaster_Coordina
     }
 });
 
+// PATCH /api/teams/:id/on-scene — mark an Assigned team as Busy (on-scene)
+router.patch('/:id/on-scene', authorize('System_Admin', 'Disaster_Coordinator', 'Rescue_Operator'), async (req, res) => {
+    try {
+        const pool = await getPool();
+
+        // Verify team is currently 'Assigned'
+        const check = await pool.request()
+            .input('id', sql.Int, req.params.id)
+            .query(`SELECT team_id, availability_status FROM Rescue_Team WHERE team_id = @id`);
+
+        if (!check.recordset.length) return res.status(404).json({ error: 'Team not found' });
+        if (check.recordset[0].availability_status !== 'Assigned')
+            return res.status(409).json({ error: `Team is not in Assigned state (currently: ${check.recordset[0].availability_status})` });
+
+        await pool.request()
+            .input('id', sql.Int, req.params.id)
+            .query(`UPDATE Rescue_Team SET availability_status = 'Busy' WHERE team_id = @id`);
+
+        // Audit log
+        await pool.request()
+            .input('user_id', sql.Int, req.user.user_id)
+            .input('record_id', sql.Int, req.params.id)
+            .query(`
+                INSERT INTO Audit_Log (user_id, action, table_name, record_id, old_value, new_value, ip_address)
+                VALUES (@user_id, 'UPDATE', 'Rescue_Team', @record_id,
+                    '{"availability_status":"Assigned"}',
+                    '{"availability_status":"Busy"}',
+                    'API')
+            `);
+
+        res.json({ message: 'Team is now on-scene (Busy)' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // PATCH /api/teams/assignments/:id/complete
 router.patch('/assignments/:id/complete', authorize('System_Admin', 'Disaster_Coordinator', 'Rescue_Operator'), async (req, res) => {
     try {

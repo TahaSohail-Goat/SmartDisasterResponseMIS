@@ -7,9 +7,9 @@
 --
 --  TRIGGER INDEX
 --  ─────────────────────────────────────────────────────────
---  TRG-01  trg_TeamAssignment_SetTeamBusy
+--  TRG-01  trg_TeamAssignment_SetTeamAssigned
 --          AFTER INSERT on Team_Assignment
---          → sets Rescue_Team.availability_status = 'Busy'
+--          → sets Rescue_Team.availability_status = 'Assigned'
 --
 --  TRG-02  trg_TeamAssignment_FreeTeam
 --          AFTER UPDATE on Team_Assignment (status → Completed)
@@ -39,6 +39,7 @@
 
 -- ── Drop existing triggers (safe re-run) ─────────────────
 IF OBJECT_ID('trg_TeamAssignment_SetTeamBusy',            'TR') IS NOT NULL DROP TRIGGER trg_TeamAssignment_SetTeamBusy;
+IF OBJECT_ID('trg_TeamAssignment_SetTeamAssigned',         'TR') IS NOT NULL DROP TRIGGER trg_TeamAssignment_SetTeamAssigned;
 IF OBJECT_ID('trg_TeamAssignment_FreeTeam',               'TR') IS NOT NULL DROP TRIGGER trg_TeamAssignment_FreeTeam;
 IF OBJECT_ID('trg_ResourceAllocation_DecrementInventory', 'TR') IS NOT NULL DROP TRIGGER trg_ResourceAllocation_DecrementInventory;
 IF OBJECT_ID('trg_Inventory_PreventNegative',             'TR') IS NOT NULL DROP TRIGGER trg_Inventory_PreventNegative;
@@ -49,9 +50,10 @@ IF OBJECT_ID('trg_Audit_FinancialTransaction',            'TR') IS NOT NULL DROP
 GO
 
 -- ============================================================
---  TRG-01  Team assigned → mark team Busy
+--  TRG-01  Team assigned → mark team Assigned (intermediate state)
+--          Team goes Available → Assigned → Busy (on-scene) → Available
 -- ============================================================
-CREATE TRIGGER trg_TeamAssignment_SetTeamBusy
+CREATE TRIGGER trg_TeamAssignment_SetTeamAssigned
 ON Team_Assignment
 AFTER INSERT
 AS
@@ -59,12 +61,13 @@ BEGIN
     SET NOCOUNT ON;
 
     -- A single INSERT may assign multiple teams at once (batch-safe)
+    -- Set to 'Assigned' (dispatched but not yet on-scene)
     UPDATE RT
-    SET    RT.availability_status = 'Busy'
+    SET    RT.availability_status = 'Assigned'
     FROM   Rescue_Team RT
     INNER JOIN inserted i ON i.rescue_team_id = RT.team_id
     WHERE  i.status = 'Active'
-    AND    RT.availability_status != 'Busy';   -- avoid redundant writes
+    AND    RT.availability_status = 'Available';   -- only transition from Available
 
     -- Audit each assignment
     INSERT INTO Audit_Log (user_id, action, table_name, record_id, old_value, new_value, ip_address)
@@ -91,7 +94,7 @@ INSERT INTO Team_Assignment (rescue_team_id, report_id, assigned_at, status, not
 VALUES (3, 10, GETDATE(), 'Active', 'TRG-01 test assignment');
 
 SELECT team_id, team_name, availability_status
-FROM   Rescue_Team WHERE team_id = 3;  -- should now be 'Busy'
+FROM   Rescue_Team WHERE team_id = 3;  -- should now be 'Assigned'
 
 GO
 
@@ -113,11 +116,13 @@ BEGIN
     ) RETURN;
 
     -- Free teams that have NO remaining active assignments after this update
+    -- Handles teams in both 'Assigned' and 'Busy' states
     UPDATE RT
     SET    RT.availability_status = 'Available'
     FROM   Rescue_Team RT
     INNER JOIN inserted i ON i.rescue_team_id = RT.team_id
     WHERE  i.status = 'Completed'
+    AND    RT.availability_status IN ('Assigned', 'Busy')
     AND    RT.team_id NOT IN (
         -- Teams still active somewhere
         SELECT rescue_team_id

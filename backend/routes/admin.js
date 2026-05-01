@@ -32,8 +32,17 @@ adminRouter.get('/audit', authorize('System_Admin'), async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Role → Allowed request types mapping ─────────────────────
+// Each role only sees the request types they are authorized to approve
+const ROLE_APPROVAL_SCOPE = {
+    System_Admin:        null, // sees everything
+    Finance_Officer:     ['Procurement'],
+    Warehouse_Manager:   ['Resource_Allocation'],
+    Disaster_Coordinator:['Team_Assignment'],
+};
+
 // ── GET /api/admin/approvals ─────────────────────────────────
-// Returns all approval requests
+// Returns only the approval requests the current user's role can review
 adminRouter.get('/approvals',
     authorize('System_Admin', 'Disaster_Coordinator', 'Finance_Officer', 'Warehouse_Manager'),
     async (req, res) => {
@@ -43,6 +52,14 @@ adminRouter.get('/approvals',
             const request = pool.request();
             let where = 'WHERE 1=1';
             if (status) { request.input('status', sql.VarChar, status); where += ' AND AR.status = @status'; }
+
+            // Scope by role: only show request types this role can approve
+            const allowedTypes = ROLE_APPROVAL_SCOPE[req.user.role];
+            if (allowedTypes) {
+                const typeList = allowedTypes.map((t, i) => { request.input(`rt${i}`, sql.VarChar, t); return `@rt${i}`; }).join(',');
+                where += ` AND AR.request_type IN (${typeList})`;
+            }
+
             const result = await request.query(`
         SELECT
           AR.request_id,
@@ -126,6 +143,23 @@ adminRouter.patch('/approvals/:id',
             if (request.status !== 'Pending') {
                 await tx.rollback();
                 return res.status(409).json({ error: 'Request already decided' });
+            }
+
+            // ── Separation of duties: requester cannot approve their own request ──
+            if (request.requested_by === req.user.user_id) {
+                await tx.rollback();
+                return res.status(403).json({
+                    error: 'You cannot approve or reject your own request. Another authorized user must review it.'
+                });
+            }
+
+            // ── Role-scope check: only the correct role can approve each type ──
+            const allowedTypes = ROLE_APPROVAL_SCOPE[req.user.role];
+            if (allowedTypes && !allowedTypes.includes(request.request_type)) {
+                await tx.rollback();
+                return res.status(403).json({
+                    error: `Your role (${req.user.role}) is not authorized to approve ${request.request_type} requests.`
+                });
             }
 
             await new sql.Request(tx)

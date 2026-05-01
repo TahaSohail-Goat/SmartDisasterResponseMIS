@@ -125,6 +125,68 @@ hospitalsRouter.post('/:id/admit',
     }
 );
 
+// POST /api/hospitals/auto-admit — auto-assign patient based on capacity
+hospitalsRouter.post('/auto-admit',
+    authorize('System_Admin', 'Disaster_Coordinator'),
+    async (req, res) => {
+        const { report_id, full_name, age, gender, medical_notes } = req.body;
+        if (!report_id || !full_name || !age || !gender) {
+            return res.status(400).json({ error: 'report_id, full_name, age, and gender are required' });
+        }
+
+        const pool = await getPool();
+        const tx = new sql.Transaction(pool);
+
+        try {
+            await tx.begin();
+
+            // Find the hospital with the most available beds
+            const bestHospital = await new sql.Request(tx).query(`
+              SELECT TOP 1 hospital_id, hospital_name, available_beds
+              FROM Hospital WITH (UPDLOCK, ROWLOCK)
+              WHERE available_beds > 0
+              ORDER BY available_beds DESC, ((total_beds - available_beds) * 100.0 / total_beds) ASC
+            `);
+
+            if (!bestHospital.recordset.length) {
+                await tx.rollback();
+                return res.status(409).json({ error: 'No available beds in any hospital' });
+            }
+
+            const hospital = bestHospital.recordset[0];
+
+            // Admit patient + decrement beds
+            await new sql.Request(tx)
+                .input('hospital_id', sql.Int, hospital.hospital_id)
+                .input('report_id', sql.Int, report_id)
+                .input('full_name', sql.VarChar, full_name)
+                .input('age', sql.Int, age)
+                .input('gender', sql.VarChar, gender)
+                .input('medical_notes', sql.Text, medical_notes || null)
+                .query(`
+          INSERT INTO Patient
+            (report_id, hospital_id, full_name, age, gender,
+             admission_time, status, medical_notes)
+          VALUES (@report_id, @hospital_id, @full_name, @age, @gender,
+                  GETDATE(), 'Admitted', @medical_notes);
+
+          UPDATE Hospital
+          SET available_beds = available_beds - 1
+          WHERE hospital_id = @hospital_id;
+        `);
+
+            await tx.commit();
+            res.status(201).json({ 
+                message: `Patient automatically admitted to ${hospital.hospital_name}`,
+                hospital_name: hospital.hospital_name 
+            });
+        } catch (err) {
+            try { await tx.rollback(); } catch { /* transaction may already be closed */ }
+            res.status(500).json({ error: err.message });
+        }
+    }
+);
+
 hospitalsRouter.patch('/patients/:id',
     authorize('System_Admin', 'Disaster_Coordinator'),
     async (req, res) => {
