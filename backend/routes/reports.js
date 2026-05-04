@@ -91,7 +91,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // ── POST /api/reports — submit emergency report ───────────────
-router.post('/', async (req, res) => {
+router.post('/', authorize('Citizen'), async (req, res) => {
   const { disaster_event_id, location, latitude, longitude,
           disaster_type, severity_level, description } = req.body;
 

@@ -30,7 +30,7 @@ export default function ReportsPage() {
     disaster_type: '', severity_level: 'High', description: '',
   });
 
-  const canSubmit = hasRole('Citizen', 'System_Admin');
+  const canSubmit = hasRole('Citizen');
   const canUpdateStatus = hasRole('System_Admin', 'Disaster_Coordinator', 'Rescue_Operator');
 
   const load = useCallback(async () => {
