@@ -184,8 +184,8 @@ export default function HospitalsPage() {
                   <div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Specialization</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {(h.specialization || '').split(',').map(sp => (
-                        <span key={sp} style={{ padding: '2px 8px', borderRadius: 'var(--radius-full)',
+                      {(h.specialization || '').split(',').map((sp, i) => (
+                        <span key={`${h.hospital_id}-spec-${i}`} style={{ padding: '2px 8px', borderRadius: 'var(--radius-full)',
                           background: 'var(--accent-subtle)', color: 'var(--accent-hover)', fontSize: '0.72rem', fontWeight: 500 }}>
                           {sp.trim()}
                         </span>
@@ -235,7 +235,7 @@ export default function HospitalsPage() {
             onChange={e => setForm({ ...form, report_id: e.target.value })}>
             <option value="">Select active report…</option>
             {reports.map(r => (
-              <option key={r.report_id} value={r.report_id}>
+              <option key={`admit-report-${r.report_id}`} value={r.report_id}>
                 [{r.severity_level}] {r.location} — {r.citizen_name}
               </option>
             ))}
@@ -256,7 +256,7 @@ export default function HospitalsPage() {
             <label>Gender *</label>
             <select className="form-control" value={form.gender}
               onChange={e => setForm({ ...form, gender: e.target.value })}>
-              {['Male', 'Female', 'Other'].map(g => <option key={g}>{g}</option>)}
+              {['Male', 'Female', 'Other'].map(g => <option key={`admit-gender-${g}`}>{g}</option>)}
             </select>
           </div>
         </div>
@@ -288,7 +288,7 @@ export default function HospitalsPage() {
             onChange={e => setForm({ ...form, report_id: e.target.value })}>
             <option value="">Select active report…</option>
             {reports.map(r => (
-              <option key={r.report_id} value={r.report_id}>
+              <option key={`auto-report-${r.report_id}`} value={r.report_id}>
                 [{r.severity_level}] {r.location} — {r.citizen_name}
               </option>
             ))}
@@ -309,7 +309,7 @@ export default function HospitalsPage() {
             <label>Gender *</label>
             <select className="form-control" value={form.gender}
               onChange={e => setForm({ ...form, gender: e.target.value })}>
-              {['Male', 'Female', 'Other'].map(g => <option key={g}>{g}</option>)}
+              {['Male', 'Female', 'Other'].map(g => <option key={`auto-gender-${g}`}>{g}</option>)}
             </select>
           </div>
         </div>

@@ -9,31 +9,36 @@ const inventoryRouter = express.Router();
 inventoryRouter.use(authenticate);
 
 // GET /api/inventory — via vw_WarehouseManager_Inventory
+// NOTE: The view already includes inventory_id, warehouse_id, resource_id.
+// Do NOT join back to Warehouse/Resource/Warehouse_Inventory on string columns
+// (warehouse_name, resource_name) — that fans out and duplicates rows.
 inventoryRouter.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request().query(`
-      SELECT
-        WI.inventory_id,
-        V.resource_name,
-        V.resource_type,
-        V.unit_of_measure,
-        V.warehouse_name,
-        V.warehouse_location,
-        V.current_stock,
-        V.threshold_level,
-        V.last_updated,
-        V.buffer_above_threshold,
-        V.pending_procurement_qty,
-        V.projected_stock,
-        V.stock_alert,
-        CASE WHEN V.stock_alert IN ('LOW STOCK','OUT OF STOCK') THEN 1 ELSE 0 END AS stock_alert_flag
-      FROM vw_WarehouseManager_Inventory V
-      INNER JOIN Warehouse W ON W.warehouse_name = V.warehouse_name
-      INNER JOIN Resource  R ON R.resource_name  = V.resource_name
-      INNER JOIN Warehouse_Inventory WI ON WI.warehouse_id = W.warehouse_id AND WI.resource_id = R.resource_id
-      ORDER BY CASE WHEN V.stock_alert IN ('LOW STOCK','OUT OF STOCK') THEN 0 ELSE 1 END, V.current_stock ASC
-    `);
+            SELECT
+                WI.inventory_id,
+                V.resource_name,
+                V.resource_type,
+                V.unit_of_measure,
+                V.warehouse_name,
+                V.warehouse_location,
+                V.current_stock,
+                V.threshold_level,
+                V.last_updated,
+                V.buffer_above_threshold,
+                V.pending_procurement_qty,
+                V.projected_stock,
+                V.stock_alert,
+                CASE WHEN V.stock_alert IN ('LOW STOCK','OUT OF STOCK') THEN 1 ELSE 0 END AS stock_alert_flag
+            FROM vw_WarehouseManager_Inventory V
+            INNER JOIN Warehouse_Inventory WI
+                ON  WI.warehouse_id = V.warehouse_id
+                AND WI.resource_id  = V.resource_id
+            ORDER BY
+                CASE WHEN V.stock_alert IN ('LOW STOCK','OUT OF STOCK') THEN 0 ELSE 1 END,
+                V.current_stock ASC
+        `);
         res.json(result.recordset);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -69,17 +74,17 @@ inventoryRouter.post('/allocate',
                 .input('requested_by', sql.Int, req.user.user_id)
                 .input('allocated_quantity', sql.Int, allocated_quantity)
                 .query(`
-          DECLARE @insertedAllocations TABLE (allocation_id INT);
+                    DECLARE @insertedAllocations TABLE (allocation_id INT);
 
-          INSERT INTO Resource_Allocation
-            (inventory_id, report_id, requested_by, allocated_quantity,
-             dispatched_quantity, consumed_quantity, allocation_date, status)
-          OUTPUT INSERTED.allocation_id INTO @insertedAllocations
-          VALUES (@inventory_id, @report_id, @requested_by, @allocated_quantity,
-                  0, 0, GETDATE(), 'Pending');
+                    INSERT INTO Resource_Allocation
+                        (inventory_id, report_id, requested_by, allocated_quantity,
+                         dispatched_quantity, consumed_quantity, allocation_date, status)
+                    OUTPUT INSERTED.allocation_id INTO @insertedAllocations
+                    VALUES (@inventory_id, @report_id, @requested_by, @allocated_quantity,
+                            0, 0, GETDATE(), 'Pending');
 
-          SELECT allocation_id FROM @insertedAllocations;
-        `);
+                    SELECT allocation_id FROM @insertedAllocations;
+                `);
 
             const req3 = new (require('mssql').Request)(tx);
             await req3
@@ -87,11 +92,11 @@ inventoryRouter.post('/allocate',
                 .input('allocation_id', sql.Int, alloc.recordset[0].allocation_id)
                 .input('remarks', sql.Text, 'Auto-generated from inventory allocation request')
                 .query(`
-          INSERT INTO Approval_Request
-            (request_type, requested_by, approved_by, allocation_id, status, request_date, resolved_date, remarks)
-          VALUES
-            ('Resource_Allocation', @requested_by, NULL, @allocation_id, 'Pending', GETDATE(), NULL, @remarks)
-        `);
+                    INSERT INTO Approval_Request
+                        (request_type, requested_by, approved_by, allocation_id, status, request_date, resolved_date, remarks)
+                    VALUES
+                        ('Resource_Allocation', @requested_by, NULL, @allocation_id, 'Pending', GETDATE(), NULL, @remarks)
+                `);
 
             await tx.commit();
             res.status(201).json({ allocation_id: alloc.recordset[0].allocation_id, message: 'Allocation created, pending approval' });

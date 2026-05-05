@@ -47,7 +47,7 @@ procurementRouter.get('/', authorize('System_Admin', 'Warehouse_Manager', 'Finan
       INNER JOIN Resource R ON R.resource_id = P.resource_id
       INNER JOIN Warehouse W ON W.warehouse_id = P.warehouse_id
       LEFT JOIN Disaster_Event DE ON DE.event_id = P.disaster_event_id
-      INNER JOIN [User] U ON U.user_id = P.approved_by
+      LEFT JOIN [User] U ON U.user_id = P.approved_by
       ${where}
       ORDER BY P.procurement_date DESC
     `);

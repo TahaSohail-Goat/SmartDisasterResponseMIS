@@ -8,27 +8,28 @@ const hospitalsRouter = express.Router();
 hospitalsRouter.use(authenticate);
 
 // GET /api/hospitals — via vw_Hospital_Capacity
+// NOTE: vw_Hospital_Capacity already exposes hospital_id.
+// Do NOT join back to Hospital on hospital_name — that fan-outs and duplicates rows.
 hospitalsRouter.get('/', async (req, res) => {
     try {
         const pool = await getPool();
         const result = await pool.request().query(`
-      SELECT
-        H.hospital_id,
-        V.hospital_name,
-        V.location,
-        V.contact_number,
-        V.specialization,
-        V.total_beds,
-        V.available_beds,
-        V.occupied_beds,
-        V.occupancy_pct,
-        V.critical_patients,
-        V.admitted_patients,
-        V.capacity_status
-      FROM vw_Hospital_Capacity V
-      INNER JOIN Hospital H ON H.hospital_name = V.hospital_name
-      ORDER BY V.occupancy_pct DESC
-    `);
+            SELECT
+                hospital_id,
+                hospital_name,
+                location,
+                contact_number,
+                specialization,
+                total_beds,
+                available_beds,
+                occupied_beds,
+                occupancy_pct,
+                critical_patients,
+                admitted_patients,
+                capacity_status
+            FROM vw_Hospital_Capacity
+            ORDER BY occupancy_pct DESC
+        `);
         res.json(result.recordset);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -43,26 +44,26 @@ hospitalsRouter.get('/patients', authorize('System_Admin', 'Disaster_Coordinator
         if (hospital_id) { request.input('hospital_id', sql.Int, hospital_id); where += ' AND P.hospital_id = @hospital_id'; }
 
         const result = await request.query(`
-          SELECT
-            P.patient_id,
-            P.report_id,
-            P.hospital_id,
-            H.hospital_name,
-            P.full_name,
-            P.age,
-            P.gender,
-            P.admission_time,
-            P.discharge_time,
-            P.status,
-            P.medical_notes,
-            ER.location AS report_location,
-            DE.event_name
-          FROM Patient P
-          INNER JOIN Hospital H ON H.hospital_id = P.hospital_id
-          INNER JOIN Emergency_Report ER ON ER.report_id = P.report_id
-          INNER JOIN Disaster_Event DE ON DE.event_id = ER.disaster_event_id
-          ${where}
-          ORDER BY P.admission_time DESC
+            SELECT
+                P.patient_id,
+                P.report_id,
+                P.hospital_id,
+                H.hospital_name,
+                P.full_name,
+                P.age,
+                P.gender,
+                P.admission_time,
+                P.discharge_time,
+                P.status,
+                P.medical_notes,
+                ER.location AS report_location,
+                DE.event_name
+            FROM Patient P
+            INNER JOIN Hospital H ON H.hospital_id = P.hospital_id
+            INNER JOIN Emergency_Report ER ON ER.report_id = P.report_id
+            INNER JOIN Disaster_Event DE ON DE.event_id = ER.disaster_event_id
+            ${where}
+            ORDER BY P.admission_time DESC
         `);
         res.json(result.recordset);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -105,16 +106,16 @@ hospitalsRouter.post('/:id/admit',
                 .input('gender', sql.VarChar, gender)
                 .input('medical_notes', sql.Text, medical_notes || null)
                 .query(`
-          INSERT INTO Patient
-            (report_id, hospital_id, full_name, age, gender,
-             admission_time, status, medical_notes)
-          VALUES (@report_id, @hospital_id, @full_name, @age, @gender,
-                  GETDATE(), 'Admitted', @medical_notes);
+                    INSERT INTO Patient
+                        (report_id, hospital_id, full_name, age, gender,
+                         admission_time, status, medical_notes)
+                    VALUES (@report_id, @hospital_id, @full_name, @age, @gender,
+                            GETDATE(), 'Admitted', @medical_notes);
 
-          UPDATE Hospital
-          SET available_beds = available_beds - 1
-          WHERE hospital_id = @hospital_id;
-        `);
+                    UPDATE Hospital
+                    SET available_beds = available_beds - 1
+                    WHERE hospital_id = @hospital_id;
+                `);
 
             await tx.commit();
             res.status(201).json({ message: 'Patient admitted' });
@@ -142,10 +143,10 @@ hospitalsRouter.post('/auto-admit',
 
             // Find the hospital with the most available beds
             const bestHospital = await new sql.Request(tx).query(`
-              SELECT TOP 1 hospital_id, hospital_name, available_beds
-              FROM Hospital WITH (UPDLOCK, ROWLOCK)
-              WHERE available_beds > 0
-              ORDER BY available_beds DESC, ((total_beds - available_beds) * 100.0 / total_beds) ASC
+                SELECT TOP 1 hospital_id, hospital_name, available_beds
+                FROM Hospital WITH (UPDLOCK, ROWLOCK)
+                WHERE available_beds > 0
+                ORDER BY available_beds DESC, ((total_beds - available_beds) * 100.0 / total_beds) ASC
             `);
 
             if (!bestHospital.recordset.length) {
@@ -164,24 +165,24 @@ hospitalsRouter.post('/auto-admit',
                 .input('gender', sql.VarChar, gender)
                 .input('medical_notes', sql.Text, medical_notes || null)
                 .query(`
-          INSERT INTO Patient
-            (report_id, hospital_id, full_name, age, gender,
-             admission_time, status, medical_notes)
-          VALUES (@report_id, @hospital_id, @full_name, @age, @gender,
-                  GETDATE(), 'Admitted', @medical_notes);
+                    INSERT INTO Patient
+                        (report_id, hospital_id, full_name, age, gender,
+                         admission_time, status, medical_notes)
+                    VALUES (@report_id, @hospital_id, @full_name, @age, @gender,
+                            GETDATE(), 'Admitted', @medical_notes);
 
-          UPDATE Hospital
-          SET available_beds = available_beds - 1
-          WHERE hospital_id = @hospital_id;
-        `);
+                    UPDATE Hospital
+                    SET available_beds = available_beds - 1
+                    WHERE hospital_id = @hospital_id;
+                `);
 
             await tx.commit();
-            res.status(201).json({ 
+            res.status(201).json({
                 message: `Patient automatically admitted to ${hospital.hospital_name}`,
-                hospital_name: hospital.hospital_name 
+                hospital_name: hospital.hospital_name
             });
         } catch (err) {
-            try { await tx.rollback(); } catch { /* transaction may already be closed */ }
+            try { await tx.rollback(); } catch { /* closed */ }
             res.status(500).json({ error: err.message });
         }
     }
@@ -202,16 +203,16 @@ hospitalsRouter.patch('/patients/:id',
                 .input('status', sql.VarChar, status || null)
                 .input('medical_notes', sql.Text, medical_notes || null)
                 .query(`
-          UPDATE Patient
-          SET full_name = COALESCE(@full_name, full_name),
-              age = COALESCE(@age, age),
-              gender = COALESCE(@gender, gender),
-              status = COALESCE(@status, status),
-              medical_notes = COALESCE(@medical_notes, medical_notes)
-          WHERE patient_id = @id;
+                    UPDATE Patient
+                    SET full_name = COALESCE(@full_name, full_name),
+                        age = COALESCE(@age, age),
+                        gender = COALESCE(@gender, gender),
+                        status = COALESCE(@status, status),
+                        medical_notes = COALESCE(@medical_notes, medical_notes)
+                    WHERE patient_id = @id;
 
-          SELECT @@ROWCOUNT AS updated;
-        `);
+                    SELECT @@ROWCOUNT AS updated;
+                `);
 
             if (!result.recordset[0].updated) return res.status(404).json({ error: 'Patient not found' });
             res.json({ message: 'Patient updated' });
@@ -231,10 +232,10 @@ hospitalsRouter.patch('/patients/:id/discharge',
             const patient = await new sql.Request(tx)
                 .input('id', sql.Int, req.params.id)
                 .query(`
-          SELECT patient_id, hospital_id, status
-          FROM Patient WITH (UPDLOCK, ROWLOCK)
-          WHERE patient_id = @id
-        `);
+                    SELECT patient_id, hospital_id, status
+                    FROM Patient WITH (UPDLOCK, ROWLOCK)
+                    WHERE patient_id = @id
+                `);
 
             if (!patient.recordset.length) {
                 await tx.rollback();
@@ -250,16 +251,16 @@ hospitalsRouter.patch('/patients/:id/discharge',
                 .input('id', sql.Int, req.params.id)
                 .input('hospital_id', sql.Int, patient.recordset[0].hospital_id)
                 .query(`
-          UPDATE Patient
-          SET status = 'Discharged',
-              discharge_time = GETDATE()
-          WHERE patient_id = @id;
+                    UPDATE Patient
+                    SET status = 'Discharged',
+                        discharge_time = GETDATE()
+                    WHERE patient_id = @id;
 
-          UPDATE Hospital
-          SET available_beds = available_beds + 1
-          WHERE hospital_id = @hospital_id
-          AND available_beds < total_beds;
-        `);
+                    UPDATE Hospital
+                    SET available_beds = available_beds + 1
+                    WHERE hospital_id = @hospital_id
+                    AND available_beds < total_beds;
+                `);
 
             await tx.commit();
             res.json({ message: 'Patient discharged' });
