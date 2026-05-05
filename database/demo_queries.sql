@@ -145,3 +145,11 @@ GO
 
 
 SELECt  * From Citizen;
+
+
+
+USE ProjectDB;
+SELECT U.username, R.role_name, U.is_active
+FROM [User] U
+INNER JOIN Role R ON R.role_id = U.role_id
+ORDER BY R.role_id;

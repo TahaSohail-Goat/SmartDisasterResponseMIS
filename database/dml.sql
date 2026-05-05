@@ -1,10 +1,4 @@
--- ============================================================
---  Smart Disaster Response MIS
---  DML  — Data Manipulation Language (Sample Data)
---  Target: SQL Server (T-SQL)
---  Run AFTER ddl.sql — tables must already exist.
---  5-10 rows per table; enough for triggers/views/queries.
--- ============================================================
+
 
 -- ============================================================
 --  ROLES  (5 rows — matches RBAC section of design rationale)

@@ -290,20 +290,7 @@ GO
 PRINT '=== 7 views created. ===';
 GO
 
--- ============================================================
---  LATENCY COMPARISON — Views vs Raw Table Queries
---
---  HOW TO USE:
---    1. Run this entire section in SSMS
---    2. Check the "Messages" tab for CPU/elapsed times
---    3. Screenshot or copy the numbers into your report
---       table (template provided at the bottom of this file)
---
---  SET STATISTICS TIME ON  → CPU time + elapsed time (ms)
---  SET STATISTICS IO  ON   → logical reads (buffer hits)
---  DBCC DROPCLEANBUFFERS   → clears cache for fair comparison
---                            (requires sysadmin — skip if restricted)
--- ============================================================
+
 
 -- ── COMPARISON 1: Active disaster events with report counts ──
 
